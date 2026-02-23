@@ -316,9 +316,15 @@
         if (url) { document.execCommand('createLink', false, url); updateCode(); }
     }
 
-    function updateCode() { output.value = editor.innerHTML; }
-    editor.addEventListener('input', updateCode);
-
+    function updateCode() {
+    const output = document.getElementById('html-output');
+    // Ak je tam ešte úvodná stránka, nechaj pravý panel prázdny
+    if (document.getElementById('intro-guide')) {
+        output.value = "";
+    } else {
+        output.value = editor.innerHTML;
+    }
+}
     function exportMail(font) {
         let h = editor.innerHTML;
         // Vyčistenie bordelu a nastavenie fontu
@@ -334,6 +340,7 @@
 </body>
 
 </html>
+
 
 
 
