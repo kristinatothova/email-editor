@@ -296,20 +296,22 @@
 
  function loadTpl(idx, el) {
     let rawHtml = TPLS[idx].html;
-    
-    // Trik: Vytiahneme len to, čo je medzi <body> a </body>, aby sme zmyli biely pás
+
+    // 1. Vyčistenie kódu (odstránenie bieleho pásu vytiahnutím obsahu z <body>)
     const bodyMatch = rawHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i);
     editor.innerHTML = bodyMatch ? bodyMatch[1] : rawHtml;
-    
-    // Odomknutie pre editáciu (aby fungovala tá nová hlavička od grafikov)
+
+    // 2. Odomknutie všetkých prvkov pre editáciu (aj novej hlavičky)
     editor.querySelectorAll('*').forEach(node => {
         node.setAttribute('contenteditable', 'true');
     });
 
+    // 3. Aktualizácia názvu a menu
     document.getElementById('active-tpl-name').innerText = TPLS[idx].name;
     document.querySelectorAll('.template-item').forEach(i => i.classList.remove('active'));
     el.classList.add('active');
-    
+
+    // 4. Aktualizácia pravého panelu (vymaže inštrukcie z HTML Outputu)
     updateCode();
 }
     function exec(cmd) { document.execCommand(cmd, false, null); updateCode(); }
@@ -343,6 +345,7 @@
 </body>
 
 </html>
+
 
 
 
