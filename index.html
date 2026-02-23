@@ -14,32 +14,25 @@
         .template-item { padding: 10px; background: #3d3d3d; margin-bottom: 5px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: 0.2s; }
         .template-item:hover { background: #4d4d4d; }
         .template-item.active { background: #323e52; border-left: 4px solid var(--laba-blue); }
-
-        /* Main View */
-        #main-view { flex: 1; display: flex; flex-direction: column; }
-        .toolbar { padding: 10px; background: #333; border-bottom: 1px solid #444; display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
-        
-       #visual-container {
+#main-view {
     flex: 1;
-    background-color: #F0F2F5;
     display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    overflow-y: auto; /* TOTO povolí scrollovanie */
-    padding: 40px 0;
+    flex-direction: column;
+    background-color: #F0F2F5;
+    /* Odstránime fixnú výšku, aby sa scrolloval celý web */
+    min-height: 100vh; 
 }
 
 #editor-surface {
     width: 600px;
-    min-height: 800px;
+    margin: 40px auto;
     background: white;
     box-shadow: 0 5px 20px rgba(0,0,0,0.2);
     outline: none;
     padding: 0 !important;
-    margin: 20px auto;
-    /* TOTO pridaj pre scrollovanie */
-    max-height: 85vh; 
-    overflow-y: auto;
+    /* Zrušíme vnútorné scrollovanie */
+    overflow: visible; 
+    height: auto;
 }
 
         /* Code View */
@@ -345,6 +338,7 @@
 </body>
 
 </html>
+
 
 
 
