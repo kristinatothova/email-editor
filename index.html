@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <title>LABA / SKVOT Email Editor</title>
+    <style>
+        :root { --bg: #1e1e1e; --panel: #2d2d2d; --accent: #4ade80; --text: #d4d4d4; --laba-blue: #0051ff; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; background: var(--bg); color: var(--text); }
+        
+        #sidebar { width: 300px; background: var(--panel); border-right: 1px solid #444; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 20px; background: #333; font-weight: bold; border-bottom: 1px solid #444; color: white; display: flex; align-items: center; justify-content: space-between; }
+        .template-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .template-item { padding: 12px; background: #3d3d3d; margin-bottom: 8px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: 0.2s; border-left: 4px solid transparent; }
+        .template-item:hover { background: #4d4d4d; border-left-color: var(--accent); }
+        .template-item.active { background: #323e52; border-left-color: var(--laba-blue); }
+
+        #main-view { flex: 1; display: flex; flex-direction: column; }
+        .top-bar { padding: 10px 20px; background: #333; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; }
+        
+        #visual-container { flex: 1; background-color: #F0F2F5; overflow-y: auto; padding: 40px 20px; display: flex; justify-content: center; }
+        #editor-surface { width: 600px; min-height: 800px; background: white; box-shadow: 0 10px 40px rgba(0,0,0,0.2); outline: none; border-radius: 2px; color: #000; }
+
+        #code-container { width: 400px; background: var(--panel); border-left: 1px solid #444; display: flex; flex-direction: column; }
+        textarea { flex: 1; background: #161616; color: #85d7ff; padding: 15px; font-family: 'Consolas', monospace; font-size: 11px; border: none; resize: none; outline: none; }
+
+        .btn { padding: 8px 16px; border-radius: 4px; border: none; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .btn-clean { background: var(--accent); color: #000; }
+        .btn-clean:hover { background: #38c16d; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <div class="sidebar-header">✉️ EMAIL TEMPLATY</div>
+        <div class="template-list" id="tpl-list"></div>
+        <div style="padding: 15px; font-size: 11px; color: #888;">LABA / SKVOT Team Editor v1.0</div>
+    </div>
+
+    <div id="main-view">
+        <div class="top-bar">
+            <span id="active-tpl-name" style="color: #aaa;">Vyberte šablónu</span>
+            <button class="btn btn-clean" onclick="copyFinalHTML()">🧹 VYČISTIŤ A KOPÍROVAŤ DO LEARNWORLDS</button>
+        </div>
+        <div id="visual-container">
+            <div id="editor-surface" contenteditable="true"></div>
+        </div>
+    </div>
+
+    <div id="code-container">
+        <div class="top-bar" style="background: #252525;"><span>HTML Output</span></div>
+        <textarea id="html-output" spellcheck="false"></textarea>
+    </div>
+
+    <script>
+        const PRESET_TEMPLATES = [
+            {
+                name: "Welcome letter",
+                html: `<table width="100%" bgcolor="#F6F6F6" style="padding:20px;"><tr><td align="center"><table width="600" bgcolor="#ffffff" style="border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;"><tr><td bgcolor="#000000" style="padding:20px;color:white;text-align:center;"><strong>VITAJ V KURZE! 👋</strong></td></tr><tr><td style="padding:40px;line-height:1.6;color:#1d1c1d;"><h2>Ahoj!</h2><p>Vítej v kurzu... Jsme rádi, že ses pro svůj rozvoj vybral práve nás.</p><p><strong>📅 Kdy začínáme?</strong><br>První lekce začíná...</p></td></tr></table></td></tr></table>`
+            },
+            {
+                name: "Day before",
+                html: `<table width="100%" bgcolor="#F6F6F6" style="padding:20px;"><tr><td align="center"><table width="600" bgcolor="#ffffff" style="border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;"><tr><td bgcolor="#FFD700" style="padding:20px;color:black;text-align:center;"><strong>ZÍTRA ZAČÍNÁME! 🚀</strong></td></tr><tr><td style="padding:40px;line-height:1.6;color:#1d1c1d;"><h2>Ahoj!</h2><p>Připomínáme, že tvoje první lekce začíná už zítra.</p></td></tr></table></td></tr></table>`
+            },
+            {
+                name: "Certifikát o účasti",
+                html: `<table width="100%" bgcolor="#F6F6F6" style="padding:20px;"><tr><td align="center"><table width="600" bgcolor="#ffffff" style="border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;"><tr><td style="padding:40px;text-align:center;line-height:1.6;"><h2>🎓 Tvůj certifikát je připraven!</h2><p>Děkujeme za účast na kurzu.</p></td></tr></table></td></tr></table>`
+            },
+            {
+                name: "Certifikát o úspěšném absolvování",
+                html: `<table width="100%" bgcolor="#F6F6F6" style="padding:20px;"><tr><td align="center"><table width="600" bgcolor="#ffffff" style="border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;border: 2px solid #4ade80;"><tr><td style="padding:40px;text-align:center;line-height:1.6;"><h2>🏆 Gratulujeme k úspěšnému ukončení!</h2><p>Tady je tvůj oficiální certifikát o absolvování kurzu.</p></td></tr></table></td></tr></table>`
+            },
+            {
+                name: "Info mail",
+                html: `<table width="100%" bgcolor="#F6F6F6" style="padding:20px;"><tr><td align="center"><table width="600" bgcolor="#ffffff" style="border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;"><tr><td style="padding:40px;line-height:1.6;"><h2>Důležité informace ℹ️</h2><p>Zde najdeš vše podstatné, co potřebuješ vědět.</p></td></tr></table></td></tr></table>`
+            },
+            {
+                name: "Pauza v kurzu",
+                html: `<table width="100%" bgcolor="#F6F6F6" style="padding:20px;"><tr><td align="center"><table width="600" bgcolor="#ffffff" style="border-radius:4px;overflow:hidden;font-family:Arial,sans-serif;"><tr><td bgcolor="#efefef" style="padding:20px;text-align:center;"><strong>OZNÁMENÍ O PAUZE ☕</strong></td></tr><tr><td style="padding:40px;line-height:1.6;"><h2>Ahoj!</h2><p>V kurzu teď budeme mít krátkou pauzu. Další lekce bude...</p></td></tr></table></td></tr></table>`
+            }
+        ];
+
+        const editor = document.getElementById('editor-surface');
+        const codeView = document.getElementById('html-output');
+        const tplListContainer = document.getElementById('tpl-list');
+        const activeTplLabel = document.getElementById('active-tpl-name');
+
+        function initTemplates() {
+            PRESET_TEMPLATES.forEach((tpl, index) => {
+                const item = document.createElement('div');
+                item.className = 'template-item';
+                item.innerHTML = tpl.name;
+                item.onclick = () => {
+                    editor.innerHTML = tpl.html;
+                    updateCode();
+                    activeTplLabel.innerText = tpl.name;
+                    document.querySelectorAll('.template-item').forEach(el => el.classList.remove('active'));
+                    item.classList.add('active');
+                };
+                tplListContainer.appendChild(item);
+            });
+            // Načítať prvú
+            editor.innerHTML = PRESET_TEMPLATES[0].html;
+            activeTplLabel.innerText = PRESET_TEMPLATES[0].name;
+            updateCode();
+        }
+
+        function updateCode() { codeView.value = editor.innerHTML; }
+        function updateVisual() { editor.innerHTML = codeView.value; }
+        
+        editor.addEventListener('input', updateCode);
+        codeView.addEventListener('input', updateVisual);
+
+        function copyFinalHTML() {
+            let html = editor.innerHTML;
+            // Odstránenie Google Docs a zbytočných tagov
+            html = html.replace(/id="docs-internal-guid-[^"]*"/g, '');
+            html = html.replace(/<span[^>]*>|<\/span>/g, '');
+            html = html.replace(/<meta[^>]*>/g, '');
+            
+            codeView.value = html;
+            codeView.select();
+            document.execCommand('copy');
+            
+            alert('Vyčišteno a skopírováno!');
+        }
+
+        initTemplates();
+    </script>
+</body>
+</html>
