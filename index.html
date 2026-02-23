@@ -2,112 +2,125 @@
 <html lang="sk">
 <head>
     <meta charset="UTF-8">
-    <title>LABA / SKVOT Email Editor</title>
+    <title>LABA / SKVOT Email Editor PRO</title>
     <style>
         :root { --bg: #1e1e1e; --panel: #2d2d2d; --accent-arial: #4ade80; --accent-helvetica: #3b82f6; --text: #d4d4d4; --laba-blue: #0051ff; }
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; background: var(--bg); color: var(--text); }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; background: var(--bg); color: var(--text); overflow: hidden; }
         
-        #sidebar { width: 300px; background: var(--panel); border-right: 1px solid #444; display: flex; flex-direction: column; }
-        .sidebar-header { padding: 20px; background: #333; font-weight: bold; border-bottom: 1px solid #444; color: white; }
+        /* Sidebar */
+        #sidebar { width: 280px; background: var(--panel); border-right: 1px solid #444; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 15px; background: #333; font-weight: bold; border-bottom: 1px solid #444; text-align: center; }
         .template-list { flex: 1; overflow-y: auto; padding: 10px; }
-        .template-item { padding: 12px; background: #3d3d3d; margin-bottom: 8px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: 0.2s; border-left: 4px solid transparent; }
-        .template-item:hover { background: #4d4d4d; border-left-color: var(--accent-helvetica); }
-        .template-item.active { background: #323e52; border-left-color: var(--laba-blue); }
+        .template-item { padding: 10px; background: #3d3d3d; margin-bottom: 5px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: 0.2s; }
+        .template-item:hover { background: #4d4d4d; }
+        .template-item.active { background: #323e52; border-left: 4px solid var(--laba-blue); }
 
+        /* Main View */
         #main-view { flex: 1; display: flex; flex-direction: column; }
-        .top-bar { padding: 10px 20px; background: #333; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; }
+        .toolbar { padding: 10px; background: #333; border-bottom: 1px solid #444; display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
         
-        #visual-container { flex: 1; background-color: #F0F2F5; overflow-y: auto; padding: 40px 20px; display: flex; justify-content: center; }
-        #editor-surface { width: 600px; min-height: 800px; background: white; box-shadow: 0 10px 40px rgba(0,0,0,0.2); outline: none; color: #000; }
+        /* Editor Area */
+        #visual-container { flex: 1; background-color: #F0F2F5; overflow-y: auto; padding: 20px; display: flex; justify-content: center; }
+        #editor-surface { width: 600px; min-height: 800px; background: white; box-shadow: 0 5px 20px rgba(0,0,0,0.2); outline: none; color: #000; padding: 0; }
 
-        #code-container { width: 400px; background: var(--panel); border-left: 1px solid #444; display: flex; flex-direction: column; }
-        textarea { flex: 1; background: #161616; color: #85d7ff; padding: 15px; font-family: 'Consolas', monospace; font-size: 11px; border: none; resize: none; outline: none; }
+        /* Code View */
+        #code-container { width: 350px; background: var(--panel); border-left: 1px solid #444; display: flex; flex-direction: column; }
+        textarea { flex: 1; background: #161616; color: #85d7ff; padding: 10px; font-family: monospace; font-size: 10px; border: none; resize: none; }
 
-        .btn { padding: 8px 16px; border-radius: 4px; border: none; cursor: pointer; font-weight: bold; font-size: 12px; }
-        .btn-arial { background: var(--accent-arial); color: #000; margin-right: 8px; }
+        /* Buttons */
+        .btn-tool { background: #444; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+        .btn-tool:hover { background: #555; }
+        .btn-export { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; }
+        .btn-arial { background: var(--accent-arial); color: #000; }
         .btn-helvetica { background: var(--accent-helvetica); color: #fff; }
+        .separator { width: 1px; height: 20px; background: #555; margin: 0 5px; }
     </style>
 </head>
 <body>
 
-    <div id="sidebar">
-        <div class="sidebar-header">✉️ EMAIL TEMPLATY</div>
-        <div class="template-list" id="tpl-list"></div>
+<div id="sidebar">
+    <div class="sidebar-header">ŠABLÓNY</div>
+    <div class="template-list" id="tpl-list"></div>
+</div>
+
+<div id="main-view">
+    <div class="toolbar">
+        <button class="btn-tool" onclick="exec('bold')" title="Tučné"><b>B</b></button>
+        <button class="btn-tool" onclick="exec('underline')" title="Podčiarknuté"><u>U</u></button>
+        <button class="btn-tool" onclick="addLink()" title="Vložiť link">🔗 Link</button>
+        <button class="btn-tool" onclick="exec('unlink')" title="Zrušiť link">🚫</button>
+        
+        <div class="separator"></div>
+        
+        <button class="btn-export btn-arial" onclick="exportMail('Arial, sans-serif')">EXPORT ARIAL</button>
+        <button class="btn-export btn-helvetica" onclick="exportMail('Helvetica, Arial, sans-serif')">EXPORT HELVETICA</button>
+        
+        <span id="active-tpl-name" style="margin-left: auto; font-size: 11px; color: #888;"></span>
     </div>
-
-    <div id="main-view">
-        <div class="top-bar">
-            <span id="active-tpl-name" style="color: #aaa;">Vyberte šablónu</span>
-            <div>
-                <button class="btn btn-arial" onclick="processHTML('Arial, sans-serif')">EXPORT ARIAL</button>
-                <button class="btn btn-helvetica" onclick="processHTML('Helvetica, Arial, sans-serif')">EXPORT HELVETICA</button>
-            </div>
-        </div>
-        <div id="visual-container">
-            <div id="editor-surface" contenteditable="true"></div>
-        </div>
+    
+    <div id="visual-container">
+        <div id="editor-surface" contenteditable="true" spellcheck="false"></div>
     </div>
+</div>
 
-    <div id="code-container">
-        <div class="top-bar" style="background: #252525;"><span>HTML OUTPUT</span></div>
-        <textarea id="html-output" spellcheck="false"></textarea>
-    </div>
+<div id="code-container">
+    <div style="padding: 10px; font-size: 11px; background: #252525;">HTML OUTPUT</div>
+    <textarea id="html-output" readonly></textarea>
+</div>
 
-    <script>
-        // Kompletné načítanie tvojich súborov
-        const PRESET_TEMPLATES = [
-            { name: "Welcome letter", html: `...` }, // Sem vlož obsah Welcome letter (1) (4).html
-            { name: "Day before", html: `...` }, // Sem vlož obsah Day before.html
-            { name: "Certifikát o účasti", html: `...` }, // Sem vlož obsah Certifikat o ucasti.html
-            { name: "Certifikát o úspěšném absolvování", html: `...` }, // Sem vlož obsah Certifikat o uspesnem absolvovani.html
-            { name: "Info mail", html: `...` }, // Sem vlož obsah Info.html
-            { name: "Pauza v kurzu", html: `...` } // Sem vlož obsah Pauza v kurzu.html
-        ];
+<script>
+    const TPLS = [
+        { name: "01. Welcome letter", html: `VLOZ_KOD_1` },
+        { name: "02. Day before", html: `VLOZ_KOD_2` },
+        { name: "03. Certifikát o účasti", html: `VLOZ_KOD_3` },
+        { name: "04. Certifikát o úspechu", html: `VLOZ_KOD_4` },
+        { name: "05. Info mail", html: `VLOZ_KOD_5` },
+        { name: "06. Pauza v kurzu", html: `VLOZ_KOD_6` }
+    ];
 
-        // POZNÁMKA: V reálnom súbore nahraď tie "..." kompletným kódom z tvojich súborov.
+    const editor = document.getElementById('editor-surface');
+    const output = document.getElementById('html-output');
 
-        const editor = document.getElementById('editor-surface');
-        const codeView = document.getElementById('html-output');
-        const tplListContainer = document.getElementById('tpl-list');
-        const activeTplLabel = document.getElementById('active-tpl-name');
+    // Inicializácia zoznamu
+    function init() {
+        TPLS.forEach((t, i) => {
+            const div = document.createElement('div');
+            div.className = 'template-item';
+            div.innerText = t.name;
+            div.onclick = () => loadTpl(i, div);
+            document.getElementById('tpl-list').appendChild(div);
+        });
+    }
 
-        function initTemplates() {
-            PRESET_TEMPLATES.forEach((tpl, index) => {
-                const item = document.createElement('div');
-                item.className = 'template-item';
-                item.innerHTML = tpl.name;
-                item.onclick = () => {
-                    editor.innerHTML = tpl.html;
-                    updateCode();
-                    activeTplLabel.innerText = tpl.name;
-                    document.querySelectorAll('.template-item').forEach(el => el.classList.remove('active'));
-                    item.classList.add('active');
-                };
-                tplListContainer.appendChild(item);
-            });
-            if(PRESET_TEMPLATES.length > 0) {
-                editor.innerHTML = PRESET_TEMPLATES[0].html;
-                activeTplLabel.innerText = PRESET_TEMPLATES[0].name;
-                updateCode();
-            }
-        }
+    function loadTpl(idx, el) {
+        editor.innerHTML = TPLS[idx].html;
+        document.getElementById('active-tpl-name').innerText = TPLS[idx].name;
+        document.querySelectorAll('.template-item').forEach(i => i.classList.remove('active'));
+        el.classList.add('active');
+        updateCode();
+    }
 
-        function updateCode() { codeView.value = editor.innerHTML; }
-        editor.addEventListener('input', updateCode);
+    function exec(cmd) { document.execCommand(cmd, false, null); updateCode(); }
+    
+    function addLink() {
+        const url = prompt("Vložte URL adresu (napr. https://laba.sk):");
+        if (url) { document.execCommand('createLink', false, url); updateCode(); }
+    }
 
-        function processHTML(targetFont) {
-            let html = editor.innerHTML;
-            html = html.replace(/id="docs-internal-guid-[^"]*"/g, '');
-            html = html.replace(/<span[^>]*>|<\/span>/g, '');
-            html = html.replace(/font-family:[^;"]*/g, `font-family:${targetFont}`);
-            
-            codeView.value = html;
-            codeView.select();
-            document.execCommand('copy');
-            alert('Skopírované s fontom ' + (targetFont.includes('Helvetica') ? 'Helvetica' : 'Arial'));
-        }
+    function updateCode() { output.value = editor.innerHTML; }
+    editor.addEventListener('input', updateCode);
 
-        initTemplates();
-    </script>
+    function exportMail(font) {
+        let h = editor.innerHTML;
+        // Vyčistenie bordelu a nastavenie fontu
+        h = h.replace(/font-family:[^;"]*/g, "font-family:" + font);
+        output.value = h;
+        output.select();
+        document.execCommand('copy');
+        alert("✅ Skopírované s fontom " + (font.includes('Arial') ? 'Arial' : 'Helvetica'));
+    }
+
+    init();
+</script>
 </body>
 </html>
