@@ -19,27 +19,18 @@
         #main-view { flex: 1; display: flex; flex-direction: column; }
         .toolbar { padding: 10px; background: #333; border-bottom: 1px solid #444; display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
         
-        /* Editor Area */
-       #visual-container { 
-    flex: 1; 
-    background-color: #F0F2F5; 
-    display: flex; 
-    justify-content: center; 
-    align-items: flex-start; 
-    overflow-y: auto; /* Povoli scrollovanie celej plochy */
-    padding: 20px 0;
-}
-
-#editor-surface { 
-    width: 600px; 
-    min-height: 100vh; 
-    background: white; 
-    box-shadow: 0 5px 20px rgba(0,0,0,0.2); 
-    outline: none; 
-    color: #000; 
-    padding: 0 !important; 
-    margin: 0 auto; 
-    overflow: visible; /* Aby sa obsah nevrtal vnutri maleho okna */
+       <div id="visual-container">
+    <div id="editor-surface" contenteditable="true" spellcheck="false">
+        <div id="intro-guide" contenteditable="false" style="padding: 40px; color: #444; font-family: Arial, sans-serif; text-align: left;">
+            <h1 style="color: #0051ff; border-bottom: 2px solid #0051ff; padding-bottom: 10px;">🚀 Inštrukcie</h1>
+            <ul style="line-height: 1.8; list-style-type: none; padding: 0;">
+                <li><b>1.</b> Vyber si šablónu vľavo.</li>
+                <li><b>2.</b> Uprav text priamo kliknutím do mailu.</li>
+                <li><b>3.</b> Klikni na <b>EXPORT</b> a skopíruj kód z pravého panelu.</li>
+            </ul>
+        </div>
+    </div>
+</div>
 }
 
         /* Code View */
@@ -337,6 +328,7 @@
 </body>
 
 </html>
+
 
 
 
