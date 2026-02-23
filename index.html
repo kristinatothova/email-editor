@@ -31,12 +31,15 @@
 
 #editor-surface {
     width: 600px;
-    min-height: 800px; /* Aby papier nemizol */
+    min-height: 800px;
     background: white;
     box-shadow: 0 5px 20px rgba(0,0,0,0.2);
     outline: none;
     padding: 0 !important;
-    margin: 0 auto;
+    margin: 20px auto;
+    /* TOTO pridaj pre scrollovanie */
+    max-height: 85vh; 
+    overflow-y: auto;
 }
 
         /* Code View */
@@ -340,6 +343,7 @@
 </body>
 
 </html>
+
 
 
 
