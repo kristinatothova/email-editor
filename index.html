@@ -254,18 +254,21 @@
     }
 
   function loadTpl(idx, el) {
-    // 1. Naložíme kód do editora
+    // 1. Vložíme HTML kód do editora
     editor.innerHTML = TPLS[idx].html;
     
-    // 2. Odomkneme všetky elementy (tabuľky, texty, bunky) pre editáciu
-    editor.querySelectorAll('*').forEach(node => {
-        // Ak element obsahuje text, povolíme v ňom kurzor
-        if (node.childNodes.length > 0) {
-            node.setAttribute('contenteditable', 'true');
+    // 2. Prejdeme všetky prvky a zapneme im editáciu
+    // Toto odomkne hlavičky, bunky tabuliek aj obrázky
+    const allElements = editor.querySelectorAll('*');
+    allElements.forEach(node => {
+        node.setAttribute('contenteditable', 'true');
+        // Zabezpečíme, aby tabuľky nezalamovali kurzor divne
+        if(node.tagName === 'TD' || node.tagName === 'TABLE') {
+            node.style.cursor = 'text';
         }
     });
 
-    // 3. Klasika: názov a aktívny stav v menu
+    // 3. Ostatné funkcie editora
     document.getElementById('active-tpl-name').innerText = TPLS[idx].name;
     document.querySelectorAll('.template-item').forEach(i => i.classList.remove('active'));
     el.classList.add('active');
@@ -297,6 +300,7 @@
 </body>
 
 </html>
+
 
 
 
