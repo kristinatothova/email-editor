@@ -2,7 +2,7 @@
 <html lang="sk">
 <head>
     <meta charset="UTF-8">
-    <title>LABA / SKVOT Email Editor PRO</title>
+    <title>Email Editor</title>
     <style>
         :root { 
             --bg: #1e1e1e; 
