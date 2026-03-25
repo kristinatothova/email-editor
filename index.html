@@ -4,10 +4,16 @@
     <meta charset="UTF-8">
     <title>Email Editor</title>
     <style>
-        :root { --bg: #1e1e1e; --panel: #2d2d2d; --accent-arial: #4ade80; --accent-helvetica: #3b82f6; --text: #d4d4d4; --laba-blue: #0051ff; }
+        :root { 
+            --bg: #1e1e1e; 
+            --panel: #2d2d2d; 
+            --accent-arial: #4ade80; 
+            --text: #d4d4d4; 
+            --laba-blue: #0051ff; 
+            --custom-link-blue: #1f5fcf; 
+        }
         body { margin: 0; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; background: var(--bg); color: var(--text); overflow: hidden; }
         
-        /* Sidebar */
         #sidebar { width: 280px; background: var(--panel); border-right: 1px solid #444; display: flex; flex-direction: column; }
         .sidebar-header { padding: 15px; background: #333; font-weight: bold; border-bottom: 1px solid #444; text-align: center; }
         .template-list { flex: 1; overflow-y: auto; padding: 10px; }
@@ -15,28 +21,63 @@
         .template-item:hover { background: #4d4d4d; }
         .template-item.active { background: #323e52; border-left: 4px solid var(--laba-blue); }
 
-        /* Main View */
-        #main-view { flex: 1; display: flex; flex-direction: column; }
-        .toolbar { padding: 10px; background: #333; border-bottom: 1px solid #444; display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+        #main-view { flex: 1; display: flex; flex-direction: column; position: relative; }
+        .toolbar { padding: 10px; background: #333; border-bottom: 1px solid #444; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
         
-        /* Editor Area */
-       #visual-container { flex: 1; background-color: #F0F2F5; overflow-y: auto; padding: 40px; display: flex; justify-content: center; align-items: flex-start; }
-       #editor-surface { width: 600px; min-height: auto; background: white; box-shadow: 0 5px 20px rgba(0,0,0,0.2); outline: none; color: #000; padding: 0 !important; margin: 0 auto; }
+        #visual-container { flex: 1; background-color: #F0F2F5; overflow-y: auto; padding: 40px; display: flex; justify-content: center; align-items: flex-start; }
+        
+        #editor-surface { 
+            width: 600px; 
+            min-height: 500px; 
+            background: white; 
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2); 
+            outline: none; 
+            color: #000; 
+            padding: 20px !important; 
+            margin: 0 auto;
+            font-family: Arial, sans-serif !important;
+            font-size: 13pt !important;
+        }
+        
+        #editor-surface a { color: var(--custom-link-blue) !important; text-decoration: underline; cursor: pointer; }
 
-        /* Code View */
         #code-container { width: 350px; background: var(--panel); border-left: 1px solid #444; display: flex; flex-direction: column; }
         textarea { flex: 1; background: #161616; color: #85d7ff; padding: 10px; font-family: monospace; font-size: 10px; border: none; resize: none; }
 
-        /* Buttons */
-        .btn-tool { background: #444; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+        .btn-tool { background: #444; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-size: 12px; }
         .btn-tool:hover { background: #555; }
-        .btn-export { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; }
-        .btn-arial { background: var(--accent-arial); color: #000; }
-        .btn-helvetica { background: var(--accent-helvetica); color: #fff; }
+        
+        /* Export Button - Green */
+        .btn-export { background: var(--accent-arial); color: #000; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; text-transform: uppercase; }
+        
+        /* Clear saver - Bold Orange */
+        .btn-clean { background: #f59e0b; color: #000; font-weight: bold !important; text-transform: uppercase; font-size: 10px; }
+        
         .separator { width: 1px; height: 20px; background: #555; margin: 0 5px; }
+
+        /* Link Preview Bubble */
+        #link-preview {
+            position: fixed;
+            background: #000;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            pointer-events: none;
+            display: none;
+            z-index: 10000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            max-width: 300px;
+            word-break: break-all;
+        }
+
+        #paste-toast { position: fixed; bottom: 20px; right: 20px; background: #22c55e; color: white; padding: 8px 14px; border-radius: 6px; font-size: 12px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
+        #paste-toast.show { opacity: 1; }
     </style>
 </head>
 <body>
+
+<div id="link-preview"></div>
 
 <div id="sidebar">
     <div class="sidebar-header">ŠABLÓNY</div>
@@ -45,17 +86,31 @@
 
 <div id="main-view">
     <div class="toolbar">
-        <button class="btn-tool" onclick="exec('bold')" title="Tučné"><b>B</b></button>
-        <button class="btn-tool" onclick="exec('underline')" title="Podčiarknuté"><u>U</u></button>
-        <button class="btn-tool" onclick="addLink()" title="Vložiť link">🔗 Link</button>
-        <button class="btn-tool" onclick="exec('unlink')" title="Zrušiť link">🚫</button>
-        
+        <button class="btn-tool" onclick="exec('bold')"><b>B</b></button>
+        <button class="btn-tool" onclick="exec('underline')"><u>U</u></button>
+        <button class="btn-tool" onclick="addLink()">🔗 Link</button>
+        <button class="btn-tool" onclick="exec('unlink')">🚫</button>
         <div class="separator"></div>
-        
-        <button class="btn-export btn-arial" onclick="exportMail('Arial, sans-serif')">EXPORT ARIAL</button>
-        <button class="btn-export btn-helvetica" onclick="exportMail('Helvetica, Arial, sans-serif')">EXPORT HELVETICA</button>
-        
+        <button class="btn-tool btn-clean" onclick="cleanSelection()">🧹 Clear saver</button>
+        <div class="separator"></div>
+        <button class="btn-export" onclick="exportMail()">🚀 EXPORTOVAŤ</button>
+        <div class="separator"></div>
+        <button class="btn-tool" onclick="openHtmlModal()" style="background:#6d28d9;">⬆ Vložiť HTML</button>
         <span id="active-tpl-name" style="margin-left: auto; font-size: 11px; color: #888;"></span>
+    </div>
+
+    <div id="html-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:#2d2d2d; border:1px solid #555; border-radius:8px; width:800px; max-width:95vw; display:flex; flex-direction:column; overflow:hidden;">
+            <div style="padding:15px; background:#252525; border-bottom:1px solid #444; display:flex; justify-content:space-between; color:white; font-weight:bold;">
+                <span>Import HTML kódu (všetko bude Arial 13pt)</span>
+                <button onclick="closeHtmlModal()" style="background:none; border:none; color:#aaa; cursor:pointer; font-size:18px;">✕</button>
+            </div>
+            <textarea id="html-import-area" placeholder="Sem vložte HTML kód..." style="height:450px; background:#161616; color:#85d7ff; padding:15px; font-family:monospace; border:none; resize:none; outline:none;"></textarea>
+            <div style="padding:15px; background:#252525; border-top:1px solid #444; display:flex; gap:10px; justify-content:flex-end;">
+                <button onclick="closeHtmlModal()" class="btn-tool">Zrušiť</button>
+                <button onclick="applyHtml()" class="btn-tool" style="background:#6d28d9; padding:8px 20px; font-weight:bold;">✅ POUŽIŤ A PREFORMAŤOVAŤ</button>
+            </div>
+        </div>
     </div>
     
     <div id="visual-container">
@@ -64,14 +119,20 @@
 </div>
 
 <div id="code-container">
-    <div style="padding: 10px; font-size: 11px; background: #252525;">HTML OUTPUT</div>
+    <div style="padding: 10px; font-size: 11px; background: #252525;">KÓD PRE EXPORT</div>
     <textarea id="html-output" readonly></textarea>
 </div>
+
+<div id="paste-toast">✅ Arial 13pt aplikovaný</div>
+
 <script>
+    const MY_BLUE = '#1f5fcf';
+    const editor = document.getElementById('editor-surface');
+    const output = document.getElementById('html-output');
+    const preview = document.getElementById('link-preview');
+
     const TPLS = [
-        { 
-            name: "01. Welcome letter", 
-            html: `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta content="width=device-width, initial-scale=1" name="viewport"><meta name="x-apple-disable-message-reformatting"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta content="telephone=no" name="format-detection"><title>Welcome letter</title> <!--[if (mso 16)]><style type="text/css">     a {text-decoration: none;}     </style><![endif]--><!--[if gte mso 9]><style>sup { font-size: 100% !important; }</style><![endif]--><!--[if gte mso 9]><noscript> <xml> <o:OfficeDocumentSettings> <o:AllowPNG></o:AllowPNG> <o:PixelsPerInch>96</o:PixelsPerInch> </o:OfficeDocumentSettings> </xml> </noscript>
+        { name: "01. Welcome letter", html: `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta content="width=device-width, initial-scale=1" name="viewport"><meta name="x-apple-disable-message-reformatting"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta content="telephone=no" name="format-detection"><title>Welcome letter</title> <!--[if (mso 16)]><style type="text/css">     a {text-decoration: none;}     </style><![endif]--><!--[if gte mso 9]><style>sup { font-size: 100% !important; }</style><![endif]--><!--[if gte mso 9]><noscript> <xml> <o:OfficeDocumentSettings> <o:AllowPNG></o:AllowPNG> <o:PixelsPerInch>96</o:PixelsPerInch> </o:OfficeDocumentSettings> </xml> </noscript>
 <![endif]--><!--[if mso]><xml> <w:WordDocument xmlns:w="urn:schemas-microsoft-com:office:word"> <w:DontUseAdvancedTypographyReadingMail/> </w:WordDocument> </xml>
 <![endif]--><style type="text/css">.rollover:hover .rollover-first { max-height:0px!important; display:none!important;}.rollover:hover .rollover-second { max-height:none!important; display:block!important;}.rollover span { font-size:0;}u + .body img ~ div div { display:none;}#outlook a { padding:0;}span.MsoHyperlink,span.MsoHyperlinkFollowed { color:inherit; mso-style-priority:99;}a.r { mso-style-priority:100!important; text-decoration:none!important;}a[x-apple-data-detectors],#MessageViewBody a { color:inherit!important; text-decoration:none!important; font-size:inherit!important; font-family:inherit!important; font-weight:inherit!important; line-height:inherit!important;}.f { display:none; float:left; overflow:hidden; width:0; max-height:0; line-height:0; mso-hide:all;}@media only screen and (max-width:600px) {.bk { padding-top:0px!important } .bj { padding-right:15px!important } .bi { padding-bottom:10px!important }
  .bh { padding-top:20px!important } .bg { padding-bottom:5px!important } *[class="gmail-fix"] { display:none!important } p, a { line-height:150%!important } h1, h1 a { line-height:120%!important } h2, h2 a { line-height:120%!important } h3, h3 a { line-height:120%!important } h4, h4 a { line-height:120%!important } h5, h5 a { line-height:120%!important } h6, h6 a { line-height:120%!important } .bd p { } h1 { font-size:30px!important; text-align:center } h2 { font-size:26px!important; text-align:center } h3 { font-size:20px!important; text-align:center } h4 { font-size:24px!important; text-align:left } h5 { font-size:20px!important; text-align:left } h6 { font-size:16px!important; text-align:left } .bd p, .bd a { font-size:16px!important } .y, .y h1, .y h2, .y h3, .y h4, .y h5, .y h6 { text-align:center!important } .z, .z h1, .z h2, .z h3, .z h4, .z h5, .z h6 { text-align:left!important }
@@ -86,7 +147,7 @@
 <td align="left" class="bg" style="padding:0;Margin:0;padding-bottom:15px;padding-top:10px;width:443px"><table cellpadding="0" cellspacing="0" role="presentation" background="https://ekbdp.stripocdn.email/content/guids/CABINET_d57212fd479c0debee88e429cfb3654362f20cfc24d1f7de496921d97489495d/images/rectangle_2.png" width="100%" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px;background-position:left top;border-radius:6px;background-image:url(https://ekbdp.stripocdn.email/content/guids/CABINET_d57212fd479c0debee88e429cfb3654362f20cfc24d1f7de496921d97489495d/images/rectangle_2.png);background-repeat:no-repeat"><tbody><tr style="border-collapse:collapse">
 <td align="left" class="a" style="padding:15px;Margin:0"><p class="b" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:24px;letter-spacing:0;color:#000000;font-size:16px"><strong style="font-weight:700 !important">Důležité info ke kurzu „{{automation.product.title}}“ </strong></p> </td></tr></tbody></table></td></tr></tbody></table><!--[if mso]></td></tr></table><![endif]--></td></tr> <tr style="border-collapse:collapse"><td align="left" style="padding:0;Margin:0"><table cellpadding="0" cellspacing="0" width="100%" role="none" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tbody><tr style="border-collapse:collapse">
 <td align="center" valign="top" style="padding:0;Margin:0;width:600px"><table cellpadding="0" cellspacing="0" width="100%" bgcolor="#ffffff" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px;background-color:#ffffff" role="presentation"><tbody><tr style="border-collapse:collapse"><td align="center" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:20px;padding-bottom:10px;font-size:0px"><img src="https://ekbdp.stripocdn.email/content/guids/CABINET_d57212fd479c0debee88e429cfb3654362f20cfc24d1f7de496921d97489495d/images/mask_group_3.png" alt="" width="560" title="" class="adapt-img" style="display:block;font-size:18px;border:0;outline:none;text-decoration:none;margin:0" height="272"></td> </tr><tr style="border-collapse:collapse">
-<td align="left" bgcolor="#ffffff" style="padding:0;Margin:0;padding-right:20px;padding-left:20px;padding-top:30px;color:#000000"><p class="z" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><strong>Ahoj {{name}}! 👋</strong></p></td></tr><tr style="border-collapse:collapse"><td align="left" bgcolor="#ffffff" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:15px;padding-bottom:30px;color:#000000"><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px">​Vítej v kurzu {{automation.product.title}}&nbsp;s {{lecturer}}. Jsme rádi, že sis pro svůj rozvoj vybral*a právě nás.&nbsp;</p>
+<td align="left" bgcolor="#ffffff" style="padding:0;Margin:0;padding-right:20px;padding-left:20px;padding-top:30px;color:#000000"><p class="z" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><strong>Ahoj! 👋</strong></p></td></tr><tr style="border-collapse:collapse"><td align="left" bgcolor="#ffffff" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:15px;padding-bottom:30px;color:#000000"><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px">​Vítej v kurzu {{automation.product.title}}&nbsp;s {{lecturer}}. Jsme rádi, že sis pro svůj rozvoj vybral*a právě nás.&nbsp;</p>
  <p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px"><br></p><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px">📅 <strong style="font-weight:700 !important">Kdy začínáme?</strong></p><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px">První lekce začíná {{date}} v {{time}}.&nbsp;</p> <p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px">Lekce probíhají každé {{days}} od {{time}} do {{time}} až do {{end_date}}.&nbsp;</p>
 <p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px"><br></p><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px">➡️ <strong style="font-weight:700 !important">Otevřít kurz v LMS</strong></p> <p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px">Datum a čas lekce najdeš vždy v LMS. Taky ti posíláme <strong style="font-weight:700 !important">Google kalendář</strong> se všemi termíny – stačí kliknout na odkaz a přidat si ho.&nbsp;</p>
 <p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px"><br></p> <p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px"><strong style="font-weight:700 !important">💻 Kde kurz probíhá?</strong> Kurz poběží na naší vzdělávací platformě <strong style="font-weight:700 !important">LMS (Learning Management System)</strong>, kterou můžeš spustit na <a href="" target="_blank" style="mso-line-height-rule:exactly;text-decoration:none;color:#333333;font-size:18px;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif"><u>webu</u></a> i v mobilní aplikaci pro Android a iOS.</p>
@@ -111,9 +172,7 @@
 <td align="left" style="padding:0;Margin:0"><table cellpadding="0" cellspacing="0" width="100%" role="none" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tbody><tr style="border-collapse:collapse"><td align="center" valign="top" style="padding:0;Margin:0;width:600px"><table cellpadding="0" cellspacing="0" width="100%" role="presentation" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tbody><tr style="border-collapse:collapse"><td align="center" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:15px;padding-bottom:20px;color:#000000"><p class="z" style="Margin:0;mso-line-height-rule:exactly;font-family:verdana, geneva, sans-serif;line-height:16.5px;letter-spacing:0;color:#333333;font-size:11px">Copyright©️ 2026, Laba Czech vzdělávání s.r.o. All Rights Reserved.<br>{{address}}</p>
  <p class="z" style="Margin:0;mso-line-height-rule:exactly;font-family:verdana, geneva, sans-serif;line-height:16.5px;letter-spacing:0;color:#333333;font-size:11px">Tuto provozní zprávu jste obdrželi, protože jste naším zákazníkem. Nejedná se o marketingové sdělení.</p></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></div>`, 
         },
-        { 
-            name: "02. Day before", 
-            html: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="en"><head><meta charset="UTF-8"><meta content="width=device-width, initial-scale=1" name="viewport"><meta name="x-apple-disable-message-reformatting"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta content="telephone=no" name="format-detection"><title>Email 1</title> <!--[if (mso 16)]><style type="text/css">     a {text-decoration: none;}     </style><![endif]--><!--[if gte mso 9]><style>sup { font-size: 100% !important; }</style><![endif]--><!--[if gte mso 9]><noscript> <xml> <o:OfficeDocumentSettings> <o:AllowPNG></o:AllowPNG> <o:PixelsPerInch>96</o:PixelsPerInch> </o:OfficeDocumentSettings> </xml> </noscript>
+        { name: "02. Day before", html: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="en"><head><meta charset="UTF-8"><meta content="width=device-width, initial-scale=1" name="viewport"><meta name="x-apple-disable-message-reformatting"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta content="telephone=no" name="format-detection"><title>Email 1</title> <!--[if (mso 16)]><style type="text/css">     a {text-decoration: none;}     </style><![endif]--><!--[if gte mso 9]><style>sup { font-size: 100% !important; }</style><![endif]--><!--[if gte mso 9]><noscript> <xml> <o:OfficeDocumentSettings> <o:AllowPNG></o:AllowPNG> <o:PixelsPerInch>96</o:PixelsPerInch> </o:OfficeDocumentSettings> </xml> </noscript>
 <![endif]--><!--[if mso]><xml> <w:WordDocument xmlns:w="urn:schemas-microsoft-com:office:word"> <w:DontUseAdvancedTypographyReadingMail/> </w:WordDocument> </xml>
 <![endif]--><style type="text/css">.rollover:hover .rollover-first { max-height:0px!important; display:none!important;}.rollover:hover .rollover-second { max-height:none!important; display:block!important;}.rollover span { font-size:0;}u + .body img ~ div div { display:none;}#outlook a { padding:0;}span.MsoHyperlink,span.MsoHyperlinkFollowed { color:inherit; mso-style-priority:99;}a.r { mso-style-priority:100!important; text-decoration:none!important;}a[x-apple-data-detectors],#MessageViewBody a { color:inherit!important; text-decoration:none!important; font-size:inherit!important; font-family:inherit!important; font-weight:inherit!important; line-height:inherit!important;}.f { display:none; float:left; overflow:hidden; width:0; max-height:0; line-height:0; mso-hide:all;}.v:hover a.r,.v:hover button.r,.v:hover label.r { color:#ffffff!important;}@media only screen and (max-width:600px) {.bk { padding-top:0px!important }
  .bj { padding-right:15px!important } .bi { padding-bottom:10px!important } .bh { padding-top:20px!important } .bg { padding-bottom:5px!important } *[class="gmail-fix"] { display:none!important } p, a { line-height:150%!important } h1, h1 a { line-height:120%!important } h2, h2 a { line-height:120%!important } h3, h3 a { line-height:120%!important } h4, h4 a { line-height:120%!important } h5, h5 a { line-height:120%!important } h6, h6 a { line-height:120%!important } .bd p { } h1 { font-size:30px!important; text-align:center } h2 { font-size:26px!important; text-align:center } h3 { font-size:20px!important; text-align:center } h4 { font-size:24px!important; text-align:left } h5 { font-size:20px!important; text-align:left } h6 { font-size:16px!important; text-align:left } .bd p, .bd a { font-size:16px!important } .y, .y h1, .y h2, .y h3, .y h4, .y h5, .y h6 { text-align:center!important }
@@ -128,7 +187,7 @@
 <td align="left" class="bg" style="padding:0;Margin:0;padding-bottom:15px;padding-top:10px;width:443px"><table role="presentation" background="https://ekbdp.stripocdn.email/content/guids/CABINET_d57212fd479c0debee88e429cfb3654362f20cfc24d1f7de496921d97489495d/images/rectangle_2.png" width="100%" cellpadding="0" cellspacing="0" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px;background-position:left top;border-radius:6px;background-image:url(https://ekbdp.stripocdn.email/content/guids/CABINET_d57212fd479c0debee88e429cfb3654362f20cfc24d1f7de496921d97489495d/images/rectangle_2.png);background-repeat:no-repeat"><tr style="border-collapse:collapse">
 <td align="left" class="a" style="padding:15px;Margin:0"><p class="b" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:24px;letter-spacing:0;color:#000000;font-size:16px"><strong style="font-weight:700 !important">🎬 Připrav se – tvůj kurz brzy začíná</strong></p> </td></tr></table></td></tr></table><!--[if mso]></td></tr></table><![endif]--></td></tr> <tr style="border-collapse:collapse"><td align="left" style="padding:0;Margin:0"><table cellpadding="0" cellspacing="0" width="100%" role="none" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tr style="border-collapse:collapse">
 <td align="center" valign="top" style="padding:0;Margin:0;width:600px"><table cellpadding="0" cellspacing="0" width="100%" bgcolor="#ffffff" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px;background-color:#ffffff" role="presentation"><tr style="border-collapse:collapse"><td align="center" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:20px;padding-bottom:10px;font-size:0px"><img src="https://ekbdp.stripocdn.email/content/guids/CABINET_81bc05a9e6885d83d1acb033a65ccc8aec815f822c87b08fb1cc8896d3c23c4e/images/mask_group_4.png" alt="" width="560" title="" class="adapt-img" style="display:block;font-size:18px;border:0;outline:none;text-decoration:none;margin:0" height="272"></td> </tr><tr style="border-collapse:collapse">
-<td align="left" bgcolor="#ffffff" style="padding:0;Margin:0;padding-right:20px;padding-left:20px;padding-top:30px;color:#000000"><p class="z" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><b>Ahoj {{name}}! 👋</b></p></td></tr><tr style="border-collapse:collapse"><td align="left" bgcolor="#ffffff" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:15px;padding-bottom:30px;color:#000000"><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px">​Zítra startuje tvůj kurz {{course_name}}. Začínáme {{date}} v {{time}}.  Materiály se zobrazí v LMS vždy v den lekce.</p>
+<td align="left" bgcolor="#ffffff" style="padding:0;Margin:0;padding-right:20px;padding-left:20px;padding-top:30px;color:#000000"><p class="z" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><b>Ahoj! 👋</b></p></td></tr><tr style="border-collapse:collapse"><td align="left" bgcolor="#ffffff" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:15px;padding-bottom:30px;color:#000000"><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px">​Zítra startuje tvůj kurz {{course_name}}. Začínáme {{date}} v {{time}}.  Materiály se zobrazí v LMS vždy v den lekce.</p>
  <p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><br/>👉 Otevřít kurz v LMS</p><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><br/>➡️ Před první lekcí:</p><ul style="font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;padding:0px 0px 0px 40px;margin-top:15px;margin-bottom:15px"> <li style="color:#333333;margin:0px 0px 15px;font-size:18px;line-height:14.4px"><p style="Margin:0;mso-line-height-rule:exactly;mso-margin-bottom-alt:15px;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:14.4px;letter-spacing:0;color:#000000;font-size:18px;mso-margin-top-alt:15px">zkontroluj svůj profil v LMS,</p></li> 
 <li style="color:#333333;margin:0px 0px 15px;font-size:18px;line-height:14.4px"><p style="Margin:0;mso-line-height-rule:exactly;mso-margin-bottom-alt:15px;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:14.4px;letter-spacing:0;color:#000000;font-size:18px">připoj se ke komunitě studentů,</p></li> <li style="color:#333333;margin:0px 0px 15px;font-size:18px;line-height:14.4px"><p style="Margin:0;mso-line-height-rule:exactly;mso-margin-bottom-alt:15px;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:14.4px;letter-spacing:0;color:#000000;font-size:18px">vyzkoušej odkaz na Zoom.</p></li> </ul><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><br/>
  <strong style="font-weight:700 !important">⚠️ Než začneme, vyplň prosím úvodní dotazník. Bez něj tě systém nepustí dál.</strong></p><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><strong style="font-weight:700 !important"></strong> <br/>Zítra se uvidíme na první živé lekci. ✨<br/><strong style="font-weight:700 !important">Laba / Skvot / robot_dreams</strong></p></td></tr></table></td></tr></table></td></tr> <tr style="border-collapse:collapse"><td align="left" bgcolor="#000000" class="esdev-adapt-off" style="padding:0;Margin:0;padding-top:5px;padding-bottom:5px;background-color:#000000"><table cellpadding="0" cellspacing="0" class="esdev-mso-table" role="none" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px;width:600px"><tr style="border-collapse:collapse">
@@ -138,9 +197,7 @@
 <td align="left" style="padding:0;Margin:0"><table cellpadding="0" cellspacing="0" width="100%" role="none" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tr style="border-collapse:collapse"><td align="center" valign="top" style="padding:0;Margin:0;width:600px"><table cellpadding="0" cellspacing="0" width="100%" role="presentation" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tr style="border-collapse:collapse"><td align="center" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:15px;padding-bottom:20px;color:#000000"><p class="z" style="Margin:0;mso-line-height-rule:exactly;font-family:verdana, geneva, sans-serif;line-height:16.5px;letter-spacing:0;color:#333333;font-size:11px">Copyright©️ 2026, Laba Czech vzdělávání s.r.o. All Rights Reserved.<br/>{{address}}</p>
  <p class="z" style="Margin:0;mso-line-height-rule:exactly;font-family:verdana, geneva, sans-serif;line-height:16.5px;letter-spacing:0;color:#333333;font-size:11px">Tuto provozní zprávu jste obdrželi, protože jste naším zákazníkem. Nejedná se o marketingové sdělení.</p></td></tr></table></td></tr></table></td></tr></table></td></tr></table></td></tr></table></div></body></html>`, 
         },
-        { 
-            name: "03. Certifikát o účasti", 
-            html: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="en"><head><meta charset="UTF-8"><meta content="width=device-width, initial-scale=1" name="viewport"><meta name="x-apple-disable-message-reformatting"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta content="telephone=no" name="format-detection"><title>Email 3</title> <!--[if (mso 16)]><style type="text/css"> a {text-decoration: none;}  </style><![endif]--><!--[if gte mso 9]><style>sup { font-size: 100% !important; }</style><![endif]--><!--[if gte mso 9]><noscript> <xml> <o:OfficeDocumentSettings> <o:AllowPNG></o:AllowPNG> <o:PixelsPerInch>96</o:PixelsPerInch> </o:OfficeDocumentSettings> </xml> </noscript>
+        { name: "03. Certifikát o účasti",   html: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="en"><head><meta charset="UTF-8"><meta content="width=device-width, initial-scale=1" name="viewport"><meta name="x-apple-disable-message-reformatting"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta content="telephone=no" name="format-detection"><title>Email 3</title> <!--[if (mso 16)]><style type="text/css"> a {text-decoration: none;}  </style><![endif]--><!--[if gte mso 9]><style>sup { font-size: 100% !important; }</style><![endif]--><!--[if gte mso 9]><noscript> <xml> <o:OfficeDocumentSettings> <o:AllowPNG></o:AllowPNG> <o:PixelsPerInch>96</o:PixelsPerInch> </o:OfficeDocumentSettings> </xml> </noscript>
 <![endif]--><!--[if mso]><xml> <w:WordDocument xmlns:w="urn:schemas-microsoft-com:office:word"> <w:DontUseAdvancedTypographyReadingMail/> </w:WordDocument> </xml>
 <![endif]--><style type="text/css">.rollover:hover .rollover-first { max-height:0px!important; display:none!important;}.rollover:hover .rollover-second { max-height:none!important; display:block!important;}.rollover span { font-size:0;}u + .body img ~ div div { display:none;}#outlook a { padding:0;}span.MsoHyperlink,span.MsoHyperlinkFollowed { color:inherit; mso-style-priority:99;}a.w { mso-style-priority:100!important; text-decoration:none!important;}a[x-apple-data-detectors],#MessageViewBody a { color:inherit!important; text-decoration:none!important; font-size:inherit!important; font-family:inherit!important; font-weight:inherit!important; line-height:inherit!important;}.k { display:none; float:left; overflow:hidden; width:0; max-height:0; line-height:0; mso-hide:all;}@media only screen and (max-width:600px) {.bq { padding-top:0px!important } .bp { padding-right:15px!important } .bo { padding-bottom:10px!important }
  .bn { padding-top:20px!important } .bm { padding-bottom:5px!important } .bl { padding-left:5px!important } *[class="gmail-fix"] { display:none!important } p, a { line-height:150%!important } h1, h1 a { line-height:120%!important } h2, h2 a { line-height:120%!important } h3, h3 a { line-height:120%!important } h4, h4 a { line-height:120%!important } h5, h5 a { line-height:120%!important } h6, h6 a { line-height:120%!important } .bi p { } h1 { font-size:30px!important; text-align:center } h2 { font-size:26px!important; text-align:center } h3 { font-size:20px!important; text-align:center } h4 { font-size:24px!important; text-align:left } h5 { font-size:20px!important; text-align:left } h6 { font-size:16px!important; text-align:left } .bi p, .bi a { font-size:16px!important } .bd, .bd h1, .bd h2, .bd h3, .bd h4, .bd h5, .bd h6 { text-align:center!important } .be, .be h1, .be h2, .be h3, .be h4, .be h5, .be h6 { text-align:left!important }
@@ -155,7 +212,7 @@
 <td align="left" class="bm" style="padding:0;Margin:0;padding-bottom:15px;padding-top:10px;width:443px"><table role="presentation" background="https://ekbdp.stripocdn.email/content/guids/CABINET_d57212fd479c0debee88e429cfb3654362f20cfc24d1f7de496921d97489495d/images/rectangle_2.png" width="100%" cellpadding="0" cellspacing="0" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px;background-position:left top;border-radius:6px;background-image:url(https://ekbdp.stripocdn.email/content/guids/CABINET_d57212fd479c0debee88e429cfb3654362f20cfc24d1f7de496921d97489495d/images/rectangle_2.png);background-repeat:no-repeat"><tr style="border-collapse:collapse">
 <td align="left" class="g" style="padding:15px;Margin:0"><p class="e" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:24px;letter-spacing:0;color:#000000;font-size:16px"><strong>🎓 Gratulujeme k dokončení kurzu {{course_name}}</strong></p> </td></tr></table></td></tr></table><!--[if mso]></td></tr></table><![endif]--></td></tr> <tr style="border-collapse:collapse"><td align="left" style="padding:0;Margin:0"><table cellpadding="0" cellspacing="0" width="100%" role="none" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tr style="border-collapse:collapse">
 <td align="center" valign="top" style="padding:0;Margin:0;width:600px"><table cellpadding="0" cellspacing="0" width="100%" bgcolor="#ffffff" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px;background-color:#ffffff" role="presentation"><tr style="border-collapse:collapse"><td align="center" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:20px;padding-bottom:10px;font-size:0px"><img src="https://ekbdp.stripocdn.email/content/guids/CABINET_52150c349b266b8f5b9354596ed60991d675a99bb5dec4eb68c2dafcfa01d004/images/mask_group_5.png" alt="" width="560" title="" class="adapt-img" style="display:block;font-size:18px;border:0;outline:none;text-decoration:none;margin:0" height="272"></td> </tr><tr style="border-collapse:collapse">
-<td align="left" bgcolor="#ffffff" style="padding:0;Margin:0;padding-right:20px;padding-left:20px;padding-top:30px;color:#000000"><p class="be" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><b>Ahoj {{name}}! 👋</b></p></td></tr><tr style="border-collapse:collapse"><td align="left" bgcolor="#ffffff" class="d" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:15px;padding-bottom:30px;color:#000000"><p class="e" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:24px;letter-spacing:0;color:#000000;font-size:16px">Gratulujeme k úspěšnému dokončení kurzu <strong>{{course_name}}</strong>. 🏆</p>
+<td align="left" bgcolor="#ffffff" style="padding:0;Margin:0;padding-right:20px;padding-left:20px;padding-top:30px;color:#000000"><p class="be" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><b>Ahoj! 👋</b></p></td></tr><tr style="border-collapse:collapse"><td align="left" bgcolor="#ffffff" class="d" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:15px;padding-bottom:30px;color:#000000"><p class="e" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:24px;letter-spacing:0;color:#000000;font-size:16px">Gratulujeme k úspěšnému dokončení kurzu <strong>{{course_name}}</strong>. 🏆</p>
  <p class="e" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:24px;letter-spacing:0;color:#000000;font-size:16px"><br/></p><p class="e" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:24px;letter-spacing:0;color:#000000;font-size:16px">➡️ Certifikát si vygeneruješ přímo v LMS. Otevři sekci <strong>Certifikáty</strong> a tam zadej<strong> své skutečné jméno</strong>, které se ti potom zobrazí i na certifikátu.</p><p class="e" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:24px;letter-spacing:0;color:#000000;font-size:16px"><br/></p>
  <p class="e" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:24px;letter-spacing:0;color:#000000;font-size:16px">Díky, že s námi profesně rosteš. 🌱 Jen tak dál!</p><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><br/><strong>Laba / Skvot / robot_dreams</strong></p></td></tr></table></td></tr></table></td></tr> <tr style="border-collapse:collapse">
 <td align="left" bgcolor="#000000" background="https://ekbdp.stripocdn.email/content/guids/CABINET_52150c349b266b8f5b9354596ed60991d675a99bb5dec4eb68c2dafcfa01d004/images/rectangle_11111717.png" class="esdev-adapt-off" style="padding:0;Margin:0;padding-top:5px;padding-bottom:5px;background-color:#000000;background-image:url(https://ekbdp.stripocdn.email/content/guids/CABINET_52150c349b266b8f5b9354596ed60991d675a99bb5dec4eb68c2dafcfa01d004/images/rectangle_11111717.png);background-repeat:repeat;background-position:left top" data-custom-paddings-d-t="true" data-custom-paddings-d-b="true"><table cellpadding="0" cellspacing="0" class="esdev-mso-table" role="none" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px;width:600px"><tr style="border-collapse:collapse">
@@ -165,9 +222,7 @@
 <td align="left" style="padding:0;Margin:0"><table cellpadding="0" cellspacing="0" width="100%" role="none" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tr style="border-collapse:collapse"><td align="center" valign="top" style="padding:0;Margin:0;width:600px"><table cellpadding="0" cellspacing="0" width="100%" role="presentation" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tr style="border-collapse:collapse"><td align="center" class="a" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:15px;padding-bottom:20px;color:#000000"><p class="be b c" style="Margin:0;mso-line-height-rule:exactly;font-family:verdana, geneva, sans-serif;line-height:16.5px;letter-spacing:0;color:#333333;font-size:11px">Copyright©️ 2026, Laba Czech vzdělávání s.r.o. All Rights Reserved.<br/> {{address}}</p>
 <p class="be" style="Margin:0;mso-line-height-rule:exactly;font-family:verdana, geneva, sans-serif;line-height:16.5px;letter-spacing:0;color:#333333;font-size:11px">Tuto provozní zprávu jste obdrželi, protože jste naším zákazníkem. Nejedná se o marketingové sdělení.</p></td></tr></table></td></tr></table></td></tr></table></td></tr></table></td></tr></table></div></body></html>`, 
         },
-        { 
-            name: "04. Certifikát o úspechu", 
-            html: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="en"><head><meta charset="UTF-8"><meta content="width=device-width, initial-scale=1" name="viewport"><meta name="x-apple-disable-message-reformatting"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta content="telephone=no" name="format-detection"><title>Email 3</title> <!--[if (mso 16)]><style type="text/css">     a {text-decoration: none;}     </style><![endif]--><!--[if gte mso 9]><style>sup { font-size: 100% !important; }</style><![endif]--><!--[if gte mso 9]><noscript> <xml> <o:OfficeDocumentSettings> <o:AllowPNG></o:AllowPNG> <o:PixelsPerInch>96</o:PixelsPerInch> </o:OfficeDocumentSettings> </xml> </noscript>
+        { name: "04. Certifikát o úspechu",  html: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="en"><head><meta charset="UTF-8"><meta content="width=device-width, initial-scale=1" name="viewport"><meta name="x-apple-disable-message-reformatting"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta content="telephone=no" name="format-detection"><title>Email 3</title> <!--[if (mso 16)]><style type="text/css">     a {text-decoration: none;}     </style><![endif]--><!--[if gte mso 9]><style>sup { font-size: 100% !important; }</style><![endif]--><!--[if gte mso 9]><noscript> <xml> <o:OfficeDocumentSettings> <o:AllowPNG></o:AllowPNG> <o:PixelsPerInch>96</o:PixelsPerInch> </o:OfficeDocumentSettings> </xml> </noscript>
 <![endif]--><!--[if mso]><xml> <w:WordDocument xmlns:w="urn:schemas-microsoft-com:office:word"> <w:DontUseAdvancedTypographyReadingMail/> </w:WordDocument> </xml>
 <![endif]--><style type="text/css">.rollover:hover .rollover-first { max-height:0px!important; display:none!important;}.rollover:hover .rollover-second { max-height:none!important; display:block!important;}.rollover span { font-size:0;}u + .body img ~ div div { display:none;}#outlook a { padding:0;}span.MsoHyperlink,span.MsoHyperlinkFollowed { color:inherit; mso-style-priority:99;}a.w { mso-style-priority:100!important; text-decoration:none!important;}a[x-apple-data-detectors],#MessageViewBody a { color:inherit!important; text-decoration:none!important; font-size:inherit!important; font-family:inherit!important; font-weight:inherit!important; line-height:inherit!important;}.k { display:none; float:left; overflow:hidden; width:0; max-height:0; line-height:0; mso-hide:all;}@media only screen and (max-width:600px) {.bq { padding-top:0px!important } .bp { padding-right:15px!important } .bo { padding-bottom:10px!important }
  .bn { padding-top:20px!important } .bm { padding-bottom:5px!important } .bl { padding-left:5px!important } *[class="gmail-fix"] { display:none!important } p, a { line-height:150%!important } h1, h1 a { line-height:120%!important } h2, h2 a { line-height:120%!important } h3, h3 a { line-height:120%!important } h4, h4 a { line-height:120%!important } h5, h5 a { line-height:120%!important } h6, h6 a { line-height:120%!important } .bi p { } h1 { font-size:30px!important; text-align:center } h2 { font-size:26px!important; text-align:center } h3 { font-size:20px!important; text-align:center } h4 { font-size:24px!important; text-align:left } h5 { font-size:20px!important; text-align:left } h6 { font-size:16px!important; text-align:left } .bi p, .bi a { font-size:16px!important } .bd, .bd h1, .bd h2, .bd h3, .bd h4, .bd h5, .bd h6 { text-align:center!important } .be, .be h1, .be h2, .be h3, .be h4, .be h5, .be h6 { text-align:left!important }
@@ -182,7 +237,7 @@
 <td align="left" class="bm" style="padding:0;Margin:0;padding-bottom:15px;padding-top:10px;width:443px"><table cellpadding="0" cellspacing="0" role="presentation" background="https://ekbdp.stripocdn.email/content/guids/CABINET_d57212fd479c0debee88e429cfb3654362f20cfc24d1f7de496921d97489495d/images/rectangle_2.png" width="100%" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px;background-repeat:no-repeat;background-position:left top;border-radius:6px;background-image:url(https://ekbdp.stripocdn.email/content/guids/CABINET_d57212fd479c0debee88e429cfb3654362f20cfc24d1f7de496921d97489495d/images/rectangle_2.png)"><tr style="border-collapse:collapse">
 <td align="left" class="g" style="padding:15px;Margin:0"><p class="e" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:24px;letter-spacing:0;color:#000000;font-size:16px"><strong style="font-weight:700 !important">🎓 Gratulujeme k dokončení kurzu {{course_name}}</strong></p> </td></tr></table></td></tr></table><!--[if mso]></td></tr></table><![endif]--></td></tr> <tr style="border-collapse:collapse"><td align="left" style="padding:0;Margin:0"><table cellpadding="0" cellspacing="0" width="100%" role="none" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tr style="border-collapse:collapse">
 <td align="center" valign="top" style="padding:0;Margin:0;width:600px"><table cellpadding="0" cellspacing="0" width="100%" bgcolor="#ffffff" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px;background-color:#ffffff" role="presentation"><tr style="border-collapse:collapse"><td align="center" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:20px;padding-bottom:10px;font-size:0px"><img src="https://ekbdp.stripocdn.email/content/guids/CABINET_52150c349b266b8f5b9354596ed60991d675a99bb5dec4eb68c2dafcfa01d004/images/mask_group_1.png" alt="" width="560" title="" class="adapt-img" style="display:block;font-size:18px;border:0;outline:none;text-decoration:none;margin:0" height="272"></td> </tr><tr style="border-collapse:collapse">
-<td align="left" bgcolor="#ffffff" style="padding:0;Margin:0;padding-right:20px;padding-left:20px;padding-top:30px;color:#000000"><p class="be" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><b>Ahoj {{name}}! 👋</b></p></td></tr><tr style="border-collapse:collapse"><td align="left" bgcolor="#ffffff" class="d" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:15px;padding-bottom:30px;color:#000000"><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px">​Gratulujeme k úspěšnému dokončení kurzu <strong style="font-weight:700 !important">{{course_name}}</strong>. 🏆&nbsp;</p>
+<td align="left" bgcolor="#ffffff" style="padding:0;Margin:0;padding-right:20px;padding-left:20px;padding-top:30px;color:#000000"><p class="be" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><b>Ahoj! 👋</b></p></td></tr><tr style="border-collapse:collapse"><td align="left" bgcolor="#ffffff" class="d" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:15px;padding-bottom:30px;color:#000000"><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px">​Gratulujeme k úspěšnému dokončení kurzu <strong style="font-weight:700 !important">{{course_name}}</strong>. 🏆&nbsp;</p>
  <p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><br/></p><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px">➡️ Certifikát si vygeneruješ přímo v LMS. Otevři sekci <strong style="font-weight:700 !important">Certifikáty</strong> a tam zadej<strong style="font-weight:700 !important"> své skutečné jméno</strong>, které se ti potom zobrazí i na certifikátu.</p><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><br/></p>
  <p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px">Díky, že s námi profesně rosteš. 🌱 Jen tak dál!</p><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><br/><strong style="font-weight:700 !important">Laba / Skvot / robot_dreams</strong></p></td></tr></table></td></tr></table></td></tr> <tr style="border-collapse:collapse">
 <td align="left" bgcolor="#000000" background="https://ekbdp.stripocdn.email/content/guids/CABINET_52150c349b266b8f5b9354596ed60991d675a99bb5dec4eb68c2dafcfa01d004/images/rectangle_11111717.png" class="esdev-adapt-off" style="padding:0;Margin:0;padding-top:5px;padding-bottom:5px;background-color:#000000;background-image:url(https://ekbdp.stripocdn.email/content/guids/CABINET_52150c349b266b8f5b9354596ed60991d675a99bb5dec4eb68c2dafcfa01d004/images/rectangle_11111717.png);background-repeat:repeat;background-position:left top"><table cellpadding="0" cellspacing="0" class="esdev-mso-table" role="none" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px;width:600px"><tr style="border-collapse:collapse">
@@ -192,9 +247,7 @@
 <td align="left" style="padding:0;Margin:0"><table cellpadding="0" cellspacing="0" width="100%" role="none" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tr style="border-collapse:collapse"><td align="center" valign="top" style="padding:0;Margin:0;width:600px"><table cellpadding="0" cellspacing="0" width="100%" role="presentation" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tr style="border-collapse:collapse"><td align="center" class="a" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:15px;padding-bottom:20px;color:#000000"><p class="be b c" style="Margin:0;mso-line-height-rule:exactly;font-family:verdana, geneva, sans-serif;line-height:16.5px;letter-spacing:0;color:#333333;font-size:11px">Copyright©️ 2026, Laba Czech vzdělávání s.r.o. All Rights Reserved.<br/> {{address}}</p>
 <p class="be" style="Margin:0;mso-line-height-rule:exactly;font-family:verdana, geneva, sans-serif;line-height:16.5px;letter-spacing:0;color:#333333;font-size:11px">Tuto provozní zprávu jste obdrželi, protože jste naším zákazníkem. Nejedná se o marketingové sdělení.</p></td></tr></table></td></tr></table></td></tr></table></td></tr></table></td></tr></table></div></body></html>`, 
         },
-        { 
-            name: "05. Info mail", 
-            html: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="en"><head><meta charset="UTF-8"><meta content="width=device-width, initial-scale=1" name="viewport"><meta name="x-apple-disable-message-reformatting"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta content="telephone=no" name="format-detection"><title>Email 4</title> <!--[if (mso 16)]><style type="text/css">     a {text-decoration: none;}     </style><![endif]--><!--[if gte mso 9]><style>sup { font-size: 100% !important; }</style><![endif]--><!--[if gte mso 9]><noscript> <xml> <o:OfficeDocumentSettings> <o:AllowPNG></o:AllowPNG> <o:PixelsPerInch>96</o:PixelsPerInch> </o:OfficeDocumentSettings> </xml> </noscript>
+        { name: "05. Info mail", html: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="en"><head><meta charset="UTF-8"><meta content="width=device-width, initial-scale=1" name="viewport"><meta name="x-apple-disable-message-reformatting"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta content="telephone=no" name="format-detection"><title>Email 4</title> <!--[if (mso 16)]><style type="text/css">     a {text-decoration: none;}     </style><![endif]--><!--[if gte mso 9]><style>sup { font-size: 100% !important; }</style><![endif]--><!--[if gte mso 9]><noscript> <xml> <o:OfficeDocumentSettings> <o:AllowPNG></o:AllowPNG> <o:PixelsPerInch>96</o:PixelsPerInch> </o:OfficeDocumentSettings> </xml> </noscript>
 <![endif]--><!--[if mso]><xml> <w:WordDocument xmlns:w="urn:schemas-microsoft-com:office:word"> <w:DontUseAdvancedTypographyReadingMail/> </w:WordDocument> </xml>
 <![endif]--><style type="text/css">.rollover:hover .rollover-first { max-height:0px!important; display:none!important;}.rollover:hover .rollover-second { max-height:none!important; display:block!important;}.rollover span { font-size:0;}u + .body img ~ div div { display:none;}#outlook a { padding:0;}span.MsoHyperlink,span.MsoHyperlinkFollowed { color:inherit; mso-style-priority:99;}a.w { mso-style-priority:100!important; text-decoration:none!important;}a[x-apple-data-detectors],#MessageViewBody a { color:inherit!important; text-decoration:none!important; font-size:inherit!important; font-family:inherit!important; font-weight:inherit!important; line-height:inherit!important;}.k { display:none; float:left; overflow:hidden; width:0; max-height:0; line-height:0; mso-hide:all;}.ba:hover a.w,.ba:hover button.w,.ba:hover label.w { color:#ffffff!important;}@media only screen and (max-width:600px) {.bq { padding-top:0px!important }
  .bp { padding-right:15px!important } .bo { padding-bottom:10px!important } .bn { padding-top:20px!important } .bm { padding-bottom:5px!important } .bl { padding-left:5px!important } *[class="gmail-fix"] { display:none!important } p, a { line-height:150%!important } h1, h1 a { line-height:120%!important } h2, h2 a { line-height:120%!important } h3, h3 a { line-height:120%!important } h4, h4 a { line-height:120%!important } h5, h5 a { line-height:120%!important } h6, h6 a { line-height:120%!important } .bi p { } h1 { font-size:30px!important; text-align:center } h2 { font-size:26px!important; text-align:center } h3 { font-size:20px!important; text-align:center } h4 { font-size:24px!important; text-align:left } h5 { font-size:20px!important; text-align:left } h6 { font-size:16px!important; text-align:left } .bi p, .bi a { font-size:16px!important } .bd, .bd h1, .bd h2, .bd h3, .bd h4, .bd h5, .bd h6 { text-align:center!important }
@@ -209,7 +262,7 @@
 <td align="left" class="bm" style="padding:0;Margin:0;padding-bottom:15px;padding-top:10px;width:443px"><table role="presentation" background="https://ekbdp.stripocdn.email/content/guids/CABINET_d57212fd479c0debee88e429cfb3654362f20cfc24d1f7de496921d97489495d/images/rectangle_2.png" width="100%" cellpadding="0" cellspacing="0" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px;background-position:left top;border-radius:6px;background-image:url(https://ekbdp.stripocdn.email/content/guids/CABINET_d57212fd479c0debee88e429cfb3654362f20cfc24d1f7de496921d97489495d/images/rectangle_2.png);background-repeat:no-repeat"><tr style="border-collapse:collapse">
 <td align="left" class="g" style="padding:15px;Margin:0"><p class="e" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:24px;letter-spacing:0;color:#000000;font-size:16px"><strong style="font-weight:700 !important">📅 &nbsp;Změna termínu lekce</strong></p> </td></tr></table></td></tr></table><!--[if mso]></td></tr></table><![endif]--></td></tr> <tr style="border-collapse:collapse"><td align="left" style="padding:0;Margin:0"><table cellpadding="0" cellspacing="0" width="100%" role="none" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tr style="border-collapse:collapse">
 <td align="center" valign="top" style="padding:0;Margin:0;width:600px"><table cellpadding="0" cellspacing="0" width="100%" bgcolor="#ffffff" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px;background-color:#ffffff" role="presentation"><tr style="border-collapse:collapse"><td align="center" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:20px;padding-bottom:10px;font-size:0px"><img src="https://ekbdp.stripocdn.email/content/guids/CABINET_ec2b836b287c58c475c6781c34719b1ed3e63b73c634a2545c056561bd751f91/images/mask_group_6.png" alt="" width="560" title="" class="adapt-img" style="display:block;font-size:18px;border:0;outline:none;text-decoration:none;margin:0" height="272"></td> </tr><tr style="border-collapse:collapse">
-<td align="left" bgcolor="#ffffff" style="padding:0;Margin:0;padding-right:20px;padding-left:20px;padding-top:30px;color:#000000"><p class="be" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><b>Ahoj {{name}}! 👋</b></p></td></tr><tr style="border-collapse:collapse"><td align="left" bgcolor="#ffffff" class="d" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:15px;padding-bottom:30px;color:#000000"><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px">​Nezapomeň, že tento týden probíhá lekce výjimečně <strong style="font-weight:700 !important">dnes. Příští týden bude kurz pokračovat podle plánovaného rozvrhu</strong>. ⏰</p>
+<td align="left" bgcolor="#ffffff" style="padding:0;Margin:0;padding-right:20px;padding-left:20px;padding-top:30px;color:#000000"><p class="be" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><b>Ahoj! 👋</b></p></td></tr><tr style="border-collapse:collapse"><td align="left" bgcolor="#ffffff" class="d" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:15px;padding-bottom:30px;color:#000000"><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px">​Nezapomeň, že tento týden probíhá lekce výjimečně <strong style="font-weight:700 !important">dnes. Příští týden bude kurz pokračovat podle plánovaného rozvrhu</strong>. ⏰</p>
  <p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px"><br/><strong style="font-weight:700 !important">Laba / Skvot / robot_dreams</strong></p></td></tr></table></td></tr></table></td></tr> <tr style="border-collapse:collapse">
 <td align="left" bgcolor="#000000" background="https://ekbdp.stripocdn.email/content/guids/CABINET_52150c349b266b8f5b9354596ed60991d675a99bb5dec4eb68c2dafcfa01d004/images/rectangle_11111717.png" class="esdev-adapt-off" style="padding:0;Margin:0;padding-top:5px;padding-bottom:5px;background-color:#000000;background-image:url(https://ekbdp.stripocdn.email/content/guids/CABINET_52150c349b266b8f5b9354596ed60991d675a99bb5dec4eb68c2dafcfa01d004/images/rectangle_11111717.png);background-repeat:repeat;background-position:left top"><table cellpadding="0" cellspacing="0" class="esdev-mso-table" role="none" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px;width:600px"><tr style="border-collapse:collapse">
 <td valign="top" class="esdev-mso-td f" style="padding:0;Margin:0"><table cellpadding="0" cellspacing="0" align="left" class="t" role="none" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px;float:left"><tr style="border-collapse:collapse"><td align="left" style="padding:0;Margin:0;width:300px"><table cellspacing="0" width="100%" cellpadding="0" role="presentation" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tr style="border-collapse:collapse">
@@ -218,9 +271,7 @@
 <td align="left" style="padding:0;Margin:0"><table cellpadding="0" cellspacing="0" width="100%" role="none" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tr style="border-collapse:collapse"><td align="center" valign="top" style="padding:0;Margin:0;width:600px"><table cellpadding="0" cellspacing="0" width="100%" role="presentation" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tr style="border-collapse:collapse"><td align="center" class="a" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:15px;padding-bottom:20px;color:#000000"><p class="be b c" style="Margin:0;mso-line-height-rule:exactly;font-family:verdana, geneva, sans-serif;line-height:16.5px;letter-spacing:0;color:#333333;font-size:11px">Copyright©️ 2026, Laba Czech vzdělávání s.r.o. All Rights Reserved.<br/> {{address}}</p>
 <p class="be" style="Margin:0;mso-line-height-rule:exactly;font-family:verdana, geneva, sans-serif;line-height:16.5px;letter-spacing:0;color:#333333;font-size:11px">Tuto provozní zprávu jste obdrželi, protože jste naším zákazníkem. Nejedná se o marketingové sdělení.</p></td></tr></table></td></tr></table></td></tr></table></td></tr></table></td></tr></table></div></body></html>`, 
         },
-        { 
-            name: "06. Pauza v kurzu", 
-            html: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="en"><head><meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="UTF-8"><meta name="x-apple-disable-message-reformatting"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta content="telephone=no" name="format-detection"><title>Email 5</title> <!--[if (mso 16)]><style type="text/css">     a {text-decoration: none;}     </style><![endif]--><!--[if gte mso 9]><style>sup { font-size: 100% !important; }</style><![endif]--><!--[if gte mso 9]><noscript> <xml> <o:OfficeDocumentSettings> <o:AllowPNG></o:AllowPNG> <o:PixelsPerInch>96</o:PixelsPerInch> </o:OfficeDocumentSettings> </xml> </noscript>
+        { name: "06. Pauza v kurzu", html: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="en"><head><meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="UTF-8"><meta name="x-apple-disable-message-reformatting"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta content="telephone=no" name="format-detection"><title>Email 5</title> <!--[if (mso 16)]><style type="text/css">     a {text-decoration: none;}     </style><![endif]--><!--[if gte mso 9]><style>sup { font-size: 100% !important; }</style><![endif]--><!--[if gte mso 9]><noscript> <xml> <o:OfficeDocumentSettings> <o:AllowPNG></o:AllowPNG> <o:PixelsPerInch>96</o:PixelsPerInch> </o:OfficeDocumentSettings> </xml> </noscript>
 <![endif]--><!--[if mso]><xml> <w:WordDocument xmlns:w="urn:schemas-microsoft-com:office:word"> <w:DontUseAdvancedTypographyReadingMail/> </w:WordDocument> </xml>
 <![endif]--><style type="text/css">.rollover:hover .rollover-first { max-height:0px!important; display:none!important;}.rollover:hover .rollover-second { max-height:none!important; display:block!important;}.rollover span { font-size:0;}u + .body img ~ div div { display:none;}#outlook a { padding:0;}span.MsoHyperlink,span.MsoHyperlinkFollowed { color:inherit; mso-style-priority:99;}a.w { mso-style-priority:100!important; text-decoration:none!important;}a[x-apple-data-detectors],#MessageViewBody a { color:inherit!important; text-decoration:none!important; font-size:inherit!important; font-family:inherit!important; font-weight:inherit!important; line-height:inherit!important;}.k { display:none; float:left; overflow:hidden; width:0; max-height:0; line-height:0; mso-hide:all;}@media only screen and (max-width:600px) {.bp { padding-top:0px!important } .bo { padding-right:15px!important } .bn { padding-bottom:10px!important }
  .bm { padding-bottom:5px!important } .bl { padding-left:5px!important } *[class="gmail-fix"] { display:none!important } p, a { line-height:150%!important } h1, h1 a { line-height:120%!important } h2, h2 a { line-height:120%!important } h3, h3 a { line-height:120%!important } h4, h4 a { line-height:120%!important } h5, h5 a { line-height:120%!important } h6, h6 a { line-height:120%!important } .bi p { } h1 { font-size:30px!important; text-align:center } h2 { font-size:26px!important; text-align:center } h3 { font-size:20px!important; text-align:center } h4 { font-size:24px!important; text-align:left } h5 { font-size:20px!important; text-align:left } h6 { font-size:16px!important; text-align:left } .bi p, .bi a { font-size:16px!important } .bd, .bd h1, .bd h2, .bd h3, .bd h4, .bd h5, .bd h6 { text-align:center!important } .be, .be h1, .be h2, .be h3, .be h4, .be h5, .be h6 { text-align:left!important }
@@ -235,7 +286,7 @@
 <td align="left" class="bm" style="padding:0;Margin:0;padding-bottom:15px;padding-top:10px;width:443px"><table cellpadding="0" cellspacing="0" role="presentation" background="https://ekbdp.stripocdn.email/content/guids/CABINET_d57212fd479c0debee88e429cfb3654362f20cfc24d1f7de496921d97489495d/images/rectangle_2.png" width="100%" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px;background-image:url(https://ekbdp.stripocdn.email/content/guids/CABINET_d57212fd479c0debee88e429cfb3654362f20cfc24d1f7de496921d97489495d/images/rectangle_2.png);background-repeat:no-repeat;background-position:left top;border-radius:6px"><tr style="border-collapse:collapse">
 <td align="left" class="g" style="padding:15px;Margin:0"><p class="e" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:24px;letter-spacing:0;color:#000000;font-size:16px"><strong style="font-weight:700 !important">ℹ️ Pauza v kurzu „{{course_name}}“ – pokračujeme {{date}}</strong></p> </td></tr></table></td></tr></table><!--[if mso]></td></tr></table><![endif]--></td></tr> <tr style="border-collapse:collapse"><td align="left" style="padding:0;Margin:0"><table cellpadding="0" cellspacing="0" width="100%" role="none" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tr style="border-collapse:collapse">
 <td align="center" valign="top" style="padding:0;Margin:0;width:600px"><table cellpadding="0" cellspacing="0" width="100%" bgcolor="#ffffff" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px;background-color:#ffffff" role="presentation"><tr style="border-collapse:collapse"><td align="center" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:20px;padding-bottom:10px;font-size:0px"><img src="https://ekbdp.stripocdn.email/content/guids/CABINET_ec2b836b287c58c475c6781c34719b1ed3e63b73c634a2545c056561bd751f91/images/mask_group_2.png" alt="" width="560" title="" class="adapt-img" style="display:block;font-size:18px;border:0;outline:none;text-decoration:none;margin:0" height="272"></td> </tr><tr style="border-collapse:collapse">
-<td align="left" bgcolor="#ffffff" style="padding:0;Margin:0;padding-right:20px;padding-left:20px;padding-top:30px;color:#000000"><p class="be" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><b>Ahoj {{name}}! 👋</b></p></td></tr><tr style="border-collapse:collapse"><td align="left" bgcolor="#ffffff" class="d" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:15px;padding-bottom:30px;color:#000000"><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px">​Podle rozvrhu dnes lekce neprobíhá – máme krátkou pauzu. / Podle rozvrhu lekce už tento týden neprobíhají – máme krátkou pauzu.</p>
+<td align="left" bgcolor="#ffffff" style="padding:0;Margin:0;padding-right:20px;padding-left:20px;padding-top:30px;color:#000000"><p class="be" style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><b>Ahoj! 👋</b></p></td></tr><tr style="border-collapse:collapse"><td align="left" bgcolor="#ffffff" class="d" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:15px;padding-bottom:30px;color:#000000"><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px">​Podle rozvrhu dnes lekce neprobíhá – máme krátkou pauzu. / Podle rozvrhu lekce už tento týden neprobíhají – máme krátkou pauzu.</p>
  <p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><br/></p><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px">V kurzu budeme pokračovat v/ve {{weekday}} {{date}}. /např. úterý 21. 1./</p><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px"><br/></p><p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#000000;font-size:18px">➡️ Termín najdeš také v LMS a Google kalendáři.</p>
  <p style="Margin:0;mso-line-height-rule:exactly;font-family:helvetica, 'helvetica neue', arial, verdana, sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px"><br/><strong style="font-weight:700 !important">Laba / Skvot / robot_dreams</strong></p></td></tr></table></td></tr></table></td></tr> <tr style="border-collapse:collapse">
 <td align="left" bgcolor="#000000" background="https://ekbdp.stripocdn.email/content/guids/CABINET_52150c349b266b8f5b9354596ed60991d675a99bb5dec4eb68c2dafcfa01d004/images/rectangle_11111717.png" class="esdev-adapt-off" style="padding:0;Margin:0;padding-top:5px;padding-bottom:5px;background-color:#000000;background-image:url(https://ekbdp.stripocdn.email/content/guids/CABINET_52150c349b266b8f5b9354596ed60991d675a99bb5dec4eb68c2dafcfa01d004/images/rectangle_11111717.png);background-repeat:repeat;background-position:left top"><table cellpadding="0" cellspacing="0" class="esdev-mso-table" role="none" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px;width:600px"><tr style="border-collapse:collapse">
@@ -247,10 +298,53 @@
         }
     ];
 
-    const editor = document.getElementById('editor-surface');
-    const output = document.getElementById('html-output');
+    // Link Preview logic
+    editor.addEventListener('mouseover', (e) => {
+        const target = e.target.closest('a');
+        if (target) {
+            preview.innerText = target.getAttribute('href') || 'No URL';
+            preview.style.display = 'block';
+        }
+    });
 
-    // Inicializácia zoznamu
+    editor.addEventListener('mousemove', (e) => {
+        if (preview.style.display === 'block') {
+            preview.style.left = (e.clientX + 15) + 'px';
+            preview.style.top = (e.clientY + 15) + 'px';
+        }
+    });
+
+    editor.addEventListener('mouseout', (e) => {
+        if (e.target.tagName === 'A' || e.target.closest('a')) {
+            preview.style.display = 'none';
+        }
+    });
+
+    // Auto-clean on paste
+    editor.addEventListener('paste', function(e) {
+        e.preventDefault();
+        let text = e.clipboardData.getData('text/plain');
+        let htmlContent = text.replace(/\n/g, '<br>');
+        
+        const span = document.createElement('span');
+        span.style.fontFamily = 'Arial, sans-serif';
+        span.style.fontSize = '13pt';
+        span.innerHTML = htmlContent;
+
+        const sel = window.getSelection();
+        if (sel.rangeCount) {
+            const range = sel.getRangeAt(0);
+            range.deleteContents();
+            range.insertNode(span);
+            range.setStartAfter(span);
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+        updateCode();
+        showToast();
+    });
+
     function init() {
         TPLS.forEach((t, i) => {
             const div = document.createElement('div');
@@ -261,76 +355,107 @@
         });
     }
 
-  function loadTpl(idx, el) {
-    // 1. Vložíme HTML kód do editora
-    editor.innerHTML = TPLS[idx].html;
-    
-    // 2. Prejdeme všetky prvky a zapneme im editáciu
-    // Toto odomkne hlavičky, bunky tabuliek aj obrázky
-    const allElements = editor.querySelectorAll('*');
-    allElements.forEach(node => {
-        node.setAttribute('contenteditable', 'true');
-        // Zabezpečíme, aby tabuľky nezalamovali kurzor divne
-        if(node.tagName === 'TD' || node.tagName === 'TABLE') {
-            node.style.cursor = 'text';
-        }
-    });
+    function loadTpl(idx, el) {
+        editor.innerHTML = TPLS[idx].html;
+        applyGlobalStyles(editor);
+        document.getElementById('active-tpl-name').innerText = TPLS[idx].name;
+        document.querySelectorAll('.template-item').forEach(i => i.classList.remove('active'));
+        el.classList.add('active');
+        updateCode();
+    }
 
-    // 3. Ostatné funkcie editora
-    document.getElementById('active-tpl-name').innerText = TPLS[idx].name;
-    document.querySelectorAll('.template-item').forEach(i => i.classList.remove('active'));
-    el.classList.add('active');
-    
-    updateCode();
-}
     function exec(cmd) { document.execCommand(cmd, false, null); updateCode(); }
     
     function addLink() {
-        const url = prompt("Vložte URL adresu (napr. https://laba.sk):");
-        if (url) { document.execCommand('createLink', false, url); updateCode(); }
+        const url = prompt("Vložte URL adresu:");
+        if (url) { 
+            document.execCommand('createLink', false, url); 
+            const sel = window.getSelection();
+            if (sel.rangeCount > 0) {
+                let parent = sel.anchorNode.parentElement;
+                if (parent.tagName !== 'A') parent = parent.closest('a');
+                if (parent && parent.tagName === 'A') {
+                    parent.style.color = MY_BLUE;
+                    parent.style.textDecoration = 'underline';
+                    parent.style.fontFamily = 'Arial, sans-serif';
+                    parent.style.fontSize = '13pt';
+                }
+            }
+            updateCode(); 
+        }
+    }
+
+    function cleanSelection() {
+        document.execCommand('removeFormat', false, null);
+        const sel = window.getSelection();
+        if (!sel.isCollapsed) {
+            const span = document.createElement('span');
+            span.style.fontFamily = 'Arial, sans-serif';
+            span.style.fontSize = '13pt';
+            try {
+                const range = sel.getRangeAt(0);
+                range.surroundContents(span);
+            } catch(e) {
+                document.execCommand('fontName', false, 'Arial');
+            }
+        }
+        updateCode();
     }
 
     function updateCode() { output.value = editor.innerHTML; }
     editor.addEventListener('input', updateCode);
 
-    function exportMail(font) {
-        let h = editor.innerHTML;
-        // Vyčistenie bordelu a nastavenie fontu
-        h = h.replace(/font-family:[^;"]*/g, "font-family:" + font);
-        output.value = h;
-        output.select();
-        document.execCommand('copy');
-        alert("✅ Skopírované s fontom " + (font.includes('Arial') ? 'Arial' : 'Helvetica'));
+    function applyGlobalStyles(parent) {
+        parent.querySelectorAll('*').forEach(node => {
+            node.setAttribute('contenteditable', 'true');
+            if (node.tagName !== 'A') {
+                node.style.fontFamily = 'Arial, sans-serif';
+                node.style.fontSize = '13pt';
+            }
+            if (node.tagName === 'TD' || node.tagName === 'TABLE') {
+                node.style.cursor = 'text';
+            }
+        });
+    }
+
+    function exportMail() {
+        const temp = document.createElement('div');
+        temp.innerHTML = editor.innerHTML;
+        temp.querySelectorAll('*').forEach(el => {
+            if (el.tagName !== 'A') {
+                el.style.fontFamily = 'Arial, sans-serif';
+                el.style.fontSize = '13pt';
+            }
+        });
+        const finalHtml = temp.innerHTML;
+        navigator.clipboard.writeText(finalHtml).then(() => { 
+            alert("HTML kód exportovaný a skopírovaný do schránky!"); 
+        });
+    }
+
+    function openHtmlModal() {
+        document.getElementById('html-import-area').value = "";
+        document.getElementById('html-modal').style.display = 'flex';
+    }
+
+    function closeHtmlModal() { document.getElementById('html-modal').style.display = 'none'; }
+
+    function applyHtml() {
+        const raw = document.getElementById('html-import-area').value.trim();
+        if(!raw) return;
+        editor.innerHTML = raw;
+        applyGlobalStyles(editor);
+        updateCode();
+        closeHtmlModal();
+    }
+
+    function showToast() {
+        const t = document.getElementById('paste-toast');
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2000);
     }
 
     init();
 </script>
 </body>
-
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
