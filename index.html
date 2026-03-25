@@ -1,89 +1,39 @@
+
 <!DOCTYPE html>
 <html lang="sk">
 <head>
     <meta charset="UTF-8">
-    <title>Email Editor</title>
+    <title>LABA / SKVOT Email Editor V2 - FULL TPLS</title>
     <style>
-        :root { 
-            --bg: #1e1e1e; 
-            --panel: #2d2d2d; 
-            --accent-arial: #4ade80; 
-            --text: #d4d4d4; 
-            --laba-blue: #0051ff; 
-            --custom-link-blue: #1f5fcf; 
-        }
+        :root { --bg: #1e1e1e; --panel: #2d2d2d; --accent-arial: #4ade80; --text: #d4d4d4; --laba-blue: #0051ff; --custom-link-blue: #1f5fcf; }
         body { margin: 0; font-family: 'Segoe UI', sans-serif; display: flex; height: 100vh; background: var(--bg); color: var(--text); overflow: hidden; }
-        
         #sidebar { width: 280px; background: var(--panel); border-right: 1px solid #444; display: flex; flex-direction: column; }
         .sidebar-header { padding: 15px; background: #333; font-weight: bold; border-bottom: 1px solid #444; text-align: center; }
         .template-list { flex: 1; overflow-y: auto; padding: 10px; }
         .template-item { padding: 10px; background: #3d3d3d; margin-bottom: 5px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: 0.2s; }
         .template-item:hover { background: #4d4d4d; }
         .template-item.active { background: #323e52; border-left: 4px solid var(--laba-blue); }
-
         #main-view { flex: 1; display: flex; flex-direction: column; position: relative; }
         .toolbar { padding: 10px; background: #333; border-bottom: 1px solid #444; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-        
-        #visual-container { flex: 1; background-color: #F0F2F5; overflow-y: auto; padding: 40px; display: flex; justify-content: center; align-items: flex-start; }
-        
-        #editor-surface { 
-            width: 600px; 
-            min-height: 500px; 
-            background: white; 
-            box-shadow: 0 5px 20px rgba(0,0,0,0.2); 
-            outline: none; 
-            color: #000; 
-            padding: 20px !important; 
-            margin: 0 auto;
-            font-family: Arial, sans-serif !important;
-            font-size: 13pt !important;
-        }
-        
+        #visual-container { flex: 1; background-color: #F0F2F5; overflow-y: auto; padding: 20px; display: flex; justify-content: center; align-items: flex-start; }
+        #editor-surface { width: 600px; min-height: 100%; background: white; box-shadow: 0 5px 20px rgba(0,0,0,0.1); outline: none; color: #000; padding: 0 !important; margin: 0 auto; line-height: 1.5 !important; }
+        #editor-surface p { margin: 0; padding: 0; }
         #editor-surface a { color: var(--custom-link-blue) !important; text-decoration: underline; cursor: pointer; }
-
         #code-container { width: 350px; background: var(--panel); border-left: 1px solid #444; display: flex; flex-direction: column; }
         textarea { flex: 1; background: #161616; color: #85d7ff; padding: 10px; font-family: monospace; font-size: 10px; border: none; resize: none; }
-
         .btn-tool { background: #444; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-size: 12px; }
-        .btn-tool:hover { background: #555; }
-        
-        /* Export Button - Green */
         .btn-export { background: var(--accent-arial); color: #000; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; text-transform: uppercase; }
-        
-        /* Clear saver - Bold Orange */
-        .btn-clean { background: #f59e0b; color: #000; font-weight: bold !important; text-transform: uppercase; font-size: 10px; }
-        
+        .btn-clean { background: #f59e0b; color: #000; font-weight: bold; text-transform: uppercase; font-size: 10px; }
+        #link-preview { position: fixed; background: #000; color: #fff; padding: 5px 10px; border-radius: 4px; font-size: 11px; pointer-events: none; display: none; z-index: 10000; box-shadow: 0 2px 10px rgba(0,0,0,0.5); max-width: 300px; word-break: break-all; }
         .separator { width: 1px; height: 20px; background: #555; margin: 0 5px; }
-
-        /* Link Preview Bubble */
-        #link-preview {
-            position: fixed;
-            background: #000;
-            color: #fff;
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 11px;
-            pointer-events: none;
-            display: none;
-            z-index: 10000;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-            max-width: 300px;
-            word-break: break-all;
-        }
-
-        #paste-toast { position: fixed; bottom: 20px; right: 20px; background: #22c55e; color: white; padding: 8px 14px; border-radius: 6px; font-size: 12px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
-        #paste-toast.show { opacity: 1; }
     </style>
 </head>
 <body>
-
 <div id="link-preview"></div>
-
 <div id="sidebar">
-    <div class="sidebar-header">ŠABLÓNY</div>
+    <div class="sidebar-header">MOJE ŠABLÓNY</div>
     <div class="template-list" id="tpl-list"></div>
 </div>
-
 <div id="main-view">
     <div class="toolbar">
         <button class="btn-tool" onclick="exec('bold')"><b>B</b></button>
@@ -96,43 +46,34 @@
         <button class="btn-export" onclick="exportMail()">🚀 EXPORTOVAŤ</button>
         <div class="separator"></div>
         <button class="btn-tool" onclick="openHtmlModal()" style="background:#6d28d9;">⬆ Vložiť HTML</button>
-        <span id="active-tpl-name" style="margin-left: auto; font-size: 11px; color: #888;"></span>
     </div>
-
     <div id="html-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
         <div style="background:#2d2d2d; border:1px solid #555; border-radius:8px; width:800px; max-width:95vw; display:flex; flex-direction:column; overflow:hidden;">
             <div style="padding:15px; background:#252525; border-bottom:1px solid #444; display:flex; justify-content:space-between; color:white; font-weight:bold;">
-                <span>Import HTML kódu (všetko bude Arial 13pt)</span>
-                <button onclick="closeHtmlModal()" style="background:none; border:none; color:#aaa; cursor:pointer; font-size:18px;">✕</button>
+                <span>Importovať kód (automaticky na Arial 13pt)</span>
+                <button onclick="closeHtmlModal()" style="background:none; border:none; color:#aaa; cursor:pointer;">✕</button>
             </div>
-            <textarea id="html-import-area" placeholder="Sem vložte HTML kód..." style="height:450px; background:#161616; color:#85d7ff; padding:15px; font-family:monospace; border:none; resize:none; outline:none;"></textarea>
+            <textarea id="html-import-area" style="height:450px; background:#161616; color:#85d7ff; padding:15px; font-family:monospace; border:none; resize:none; outline:none;"></textarea>
             <div style="padding:15px; background:#252525; border-top:1px solid #444; display:flex; gap:10px; justify-content:flex-end;">
-                <button onclick="closeHtmlModal()" class="btn-tool">Zrušiť</button>
-                <button onclick="applyHtml()" class="btn-tool" style="background:#6d28d9; padding:8px 20px; font-weight:bold;">✅ POUŽIŤ A PREFORMAŤOVAŤ</button>
+                <button onclick="applyHtml()" class="btn-tool" style="background:#6d28d9;">✅ POUŽIŤ</button>
             </div>
         </div>
     </div>
-    
-    <div id="visual-container">
-        <div id="editor-surface" contenteditable="true" spellcheck="false"></div>
-    </div>
+    <div id="visual-container"><div id="editor-surface" contenteditable="true" spellcheck="false"></div></div>
 </div>
-
 <div id="code-container">
     <div style="padding: 10px; font-size: 11px; background: #252525;">KÓD PRE EXPORT</div>
     <textarea id="html-output" readonly></textarea>
 </div>
-
-<div id="paste-toast">✅ Arial 13pt aplikovaný</div>
-
 <script>
-    const MY_BLUE = '#1f5fcf';
     const editor = document.getElementById('editor-surface');
     const output = document.getElementById('html-output');
     const preview = document.getElementById('link-preview');
+    document.execCommand('defaultParagraphSeparator', false, 'div');
 
+    // ZOZNAM VŠETKÝCH ŠABLÓN
     const TPLS = [
-        { name: "01. Welcome letter", html: `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta content="width=device-width, initial-scale=1" name="viewport"><meta name="x-apple-disable-message-reformatting"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta content="telephone=no" name="format-detection"><title>Welcome letter</title> <!--[if (mso 16)]><style type="text/css">     a {text-decoration: none;}     </style><![endif]--><!--[if gte mso 9]><style>sup { font-size: 100% !important; }</style><![endif]--><!--[if gte mso 9]><noscript> <xml> <o:OfficeDocumentSettings> <o:AllowPNG></o:AllowPNG> <o:PixelsPerInch>96</o:PixelsPerInch> </o:OfficeDocumentSettings> </xml> </noscript>
+        { name: "01. Welcome letter",  html: `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta content="width=device-width, initial-scale=1" name="viewport"><meta name="x-apple-disable-message-reformatting"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta content="telephone=no" name="format-detection"><title>Welcome letter</title> <!--[if (mso 16)]><style type="text/css">     a {text-decoration: none;}     </style><![endif]--><!--[if gte mso 9]><style>sup { font-size: 100% !important; }</style><![endif]--><!--[if gte mso 9]><noscript> <xml> <o:OfficeDocumentSettings> <o:AllowPNG></o:AllowPNG> <o:PixelsPerInch>96</o:PixelsPerInch> </o:OfficeDocumentSettings> </xml> </noscript>
 <![endif]--><!--[if mso]><xml> <w:WordDocument xmlns:w="urn:schemas-microsoft-com:office:word"> <w:DontUseAdvancedTypographyReadingMail/> </w:WordDocument> </xml>
 <![endif]--><style type="text/css">.rollover:hover .rollover-first { max-height:0px!important; display:none!important;}.rollover:hover .rollover-second { max-height:none!important; display:block!important;}.rollover span { font-size:0;}u + .body img ~ div div { display:none;}#outlook a { padding:0;}span.MsoHyperlink,span.MsoHyperlinkFollowed { color:inherit; mso-style-priority:99;}a.r { mso-style-priority:100!important; text-decoration:none!important;}a[x-apple-data-detectors],#MessageViewBody a { color:inherit!important; text-decoration:none!important; font-size:inherit!important; font-family:inherit!important; font-weight:inherit!important; line-height:inherit!important;}.f { display:none; float:left; overflow:hidden; width:0; max-height:0; line-height:0; mso-hide:all;}@media only screen and (max-width:600px) {.bk { padding-top:0px!important } .bj { padding-right:15px!important } .bi { padding-bottom:10px!important }
  .bh { padding-top:20px!important } .bg { padding-bottom:5px!important } *[class="gmail-fix"] { display:none!important } p, a { line-height:150%!important } h1, h1 a { line-height:120%!important } h2, h2 a { line-height:120%!important } h3, h3 a { line-height:120%!important } h4, h4 a { line-height:120%!important } h5, h5 a { line-height:120%!important } h6, h6 a { line-height:120%!important } .bd p { } h1 { font-size:30px!important; text-align:center } h2 { font-size:26px!important; text-align:center } h3 { font-size:20px!important; text-align:center } h4 { font-size:24px!important; text-align:left } h5 { font-size:20px!important; text-align:left } h6 { font-size:16px!important; text-align:left } .bd p, .bd a { font-size:16px!important } .y, .y h1, .y h2, .y h3, .y h4, .y h5, .y h6 { text-align:center!important } .z, .z h1, .z h2, .z h3, .z h4, .z h5, .z h6 { text-align:left!important }
@@ -197,7 +138,7 @@
 <td align="left" style="padding:0;Margin:0"><table cellpadding="0" cellspacing="0" width="100%" role="none" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tr style="border-collapse:collapse"><td align="center" valign="top" style="padding:0;Margin:0;width:600px"><table cellpadding="0" cellspacing="0" width="100%" role="presentation" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tr style="border-collapse:collapse"><td align="center" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:15px;padding-bottom:20px;color:#000000"><p class="z" style="Margin:0;mso-line-height-rule:exactly;font-family:verdana, geneva, sans-serif;line-height:16.5px;letter-spacing:0;color:#333333;font-size:11px">Copyright©️ 2026, Laba Czech vzdělávání s.r.o. All Rights Reserved.<br/>{{address}}</p>
  <p class="z" style="Margin:0;mso-line-height-rule:exactly;font-family:verdana, geneva, sans-serif;line-height:16.5px;letter-spacing:0;color:#333333;font-size:11px">Tuto provozní zprávu jste obdrželi, protože jste naším zákazníkem. Nejedná se o marketingové sdělení.</p></td></tr></table></td></tr></table></td></tr></table></td></tr></table></td></tr></table></div></body></html>`, 
         },
-        { name: "03. Certifikát o účasti",   html: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="en"><head><meta charset="UTF-8"><meta content="width=device-width, initial-scale=1" name="viewport"><meta name="x-apple-disable-message-reformatting"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta content="telephone=no" name="format-detection"><title>Email 3</title> <!--[if (mso 16)]><style type="text/css"> a {text-decoration: none;}  </style><![endif]--><!--[if gte mso 9]><style>sup { font-size: 100% !important; }</style><![endif]--><!--[if gte mso 9]><noscript> <xml> <o:OfficeDocumentSettings> <o:AllowPNG></o:AllowPNG> <o:PixelsPerInch>96</o:PixelsPerInch> </o:OfficeDocumentSettings> </xml> </noscript>
+        { name: "03. Certifikát o účasti", html: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="en"><head><meta charset="UTF-8"><meta content="width=device-width, initial-scale=1" name="viewport"><meta name="x-apple-disable-message-reformatting"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta content="telephone=no" name="format-detection"><title>Email 3</title> <!--[if (mso 16)]><style type="text/css"> a {text-decoration: none;}  </style><![endif]--><!--[if gte mso 9]><style>sup { font-size: 100% !important; }</style><![endif]--><!--[if gte mso 9]><noscript> <xml> <o:OfficeDocumentSettings> <o:AllowPNG></o:AllowPNG> <o:PixelsPerInch>96</o:PixelsPerInch> </o:OfficeDocumentSettings> </xml> </noscript>
 <![endif]--><!--[if mso]><xml> <w:WordDocument xmlns:w="urn:schemas-microsoft-com:office:word"> <w:DontUseAdvancedTypographyReadingMail/> </w:WordDocument> </xml>
 <![endif]--><style type="text/css">.rollover:hover .rollover-first { max-height:0px!important; display:none!important;}.rollover:hover .rollover-second { max-height:none!important; display:block!important;}.rollover span { font-size:0;}u + .body img ~ div div { display:none;}#outlook a { padding:0;}span.MsoHyperlink,span.MsoHyperlinkFollowed { color:inherit; mso-style-priority:99;}a.w { mso-style-priority:100!important; text-decoration:none!important;}a[x-apple-data-detectors],#MessageViewBody a { color:inherit!important; text-decoration:none!important; font-size:inherit!important; font-family:inherit!important; font-weight:inherit!important; line-height:inherit!important;}.k { display:none; float:left; overflow:hidden; width:0; max-height:0; line-height:0; mso-hide:all;}@media only screen and (max-width:600px) {.bq { padding-top:0px!important } .bp { padding-right:15px!important } .bo { padding-bottom:10px!important }
  .bn { padding-top:20px!important } .bm { padding-bottom:5px!important } .bl { padding-left:5px!important } *[class="gmail-fix"] { display:none!important } p, a { line-height:150%!important } h1, h1 a { line-height:120%!important } h2, h2 a { line-height:120%!important } h3, h3 a { line-height:120%!important } h4, h4 a { line-height:120%!important } h5, h5 a { line-height:120%!important } h6, h6 a { line-height:120%!important } .bi p { } h1 { font-size:30px!important; text-align:center } h2 { font-size:26px!important; text-align:center } h3 { font-size:20px!important; text-align:center } h4 { font-size:24px!important; text-align:left } h5 { font-size:20px!important; text-align:left } h6 { font-size:16px!important; text-align:left } .bi p, .bi a { font-size:16px!important } .bd, .bd h1, .bd h2, .bd h3, .bd h4, .bd h5, .bd h6 { text-align:center!important } .be, .be h1, .be h2, .be h3, .be h4, .be h5, .be h6 { text-align:left!important }
@@ -222,7 +163,7 @@
 <td align="left" style="padding:0;Margin:0"><table cellpadding="0" cellspacing="0" width="100%" role="none" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tr style="border-collapse:collapse"><td align="center" valign="top" style="padding:0;Margin:0;width:600px"><table cellpadding="0" cellspacing="0" width="100%" role="presentation" style="mso-table-lspace:0pt;mso-table-rspace:0pt;border-collapse:collapse;border-spacing:0px"><tr style="border-collapse:collapse"><td align="center" class="a" style="Margin:0;padding-right:20px;padding-left:20px;padding-top:15px;padding-bottom:20px;color:#000000"><p class="be b c" style="Margin:0;mso-line-height-rule:exactly;font-family:verdana, geneva, sans-serif;line-height:16.5px;letter-spacing:0;color:#333333;font-size:11px">Copyright©️ 2026, Laba Czech vzdělávání s.r.o. All Rights Reserved.<br/> {{address}}</p>
 <p class="be" style="Margin:0;mso-line-height-rule:exactly;font-family:verdana, geneva, sans-serif;line-height:16.5px;letter-spacing:0;color:#333333;font-size:11px">Tuto provozní zprávu jste obdrželi, protože jste naším zákazníkem. Nejedná se o marketingové sdělení.</p></td></tr></table></td></tr></table></td></tr></table></td></tr></table></td></tr></table></div></body></html>`, 
         },
-        { name: "04. Certifikát o úspechu",  html: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="en"><head><meta charset="UTF-8"><meta content="width=device-width, initial-scale=1" name="viewport"><meta name="x-apple-disable-message-reformatting"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta content="telephone=no" name="format-detection"><title>Email 3</title> <!--[if (mso 16)]><style type="text/css">     a {text-decoration: none;}     </style><![endif]--><!--[if gte mso 9]><style>sup { font-size: 100% !important; }</style><![endif]--><!--[if gte mso 9]><noscript> <xml> <o:OfficeDocumentSettings> <o:AllowPNG></o:AllowPNG> <o:PixelsPerInch>96</o:PixelsPerInch> </o:OfficeDocumentSettings> </xml> </noscript>
+        { name: "04. Certifikát o úspechu", html: `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html dir="ltr" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office" lang="en"><head><meta charset="UTF-8"><meta content="width=device-width, initial-scale=1" name="viewport"><meta name="x-apple-disable-message-reformatting"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta content="telephone=no" name="format-detection"><title>Email 3</title> <!--[if (mso 16)]><style type="text/css">     a {text-decoration: none;}     </style><![endif]--><!--[if gte mso 9]><style>sup { font-size: 100% !important; }</style><![endif]--><!--[if gte mso 9]><noscript> <xml> <o:OfficeDocumentSettings> <o:AllowPNG></o:AllowPNG> <o:PixelsPerInch>96</o:PixelsPerInch> </o:OfficeDocumentSettings> </xml> </noscript>
 <![endif]--><!--[if mso]><xml> <w:WordDocument xmlns:w="urn:schemas-microsoft-com:office:word"> <w:DontUseAdvancedTypographyReadingMail/> </w:WordDocument> </xml>
 <![endif]--><style type="text/css">.rollover:hover .rollover-first { max-height:0px!important; display:none!important;}.rollover:hover .rollover-second { max-height:none!important; display:block!important;}.rollover span { font-size:0;}u + .body img ~ div div { display:none;}#outlook a { padding:0;}span.MsoHyperlink,span.MsoHyperlinkFollowed { color:inherit; mso-style-priority:99;}a.w { mso-style-priority:100!important; text-decoration:none!important;}a[x-apple-data-detectors],#MessageViewBody a { color:inherit!important; text-decoration:none!important; font-size:inherit!important; font-family:inherit!important; font-weight:inherit!important; line-height:inherit!important;}.k { display:none; float:left; overflow:hidden; width:0; max-height:0; line-height:0; mso-hide:all;}@media only screen and (max-width:600px) {.bq { padding-top:0px!important } .bp { padding-right:15px!important } .bo { padding-bottom:10px!important }
  .bn { padding-top:20px!important } .bm { padding-bottom:5px!important } .bl { padding-left:5px!important } *[class="gmail-fix"] { display:none!important } p, a { line-height:150%!important } h1, h1 a { line-height:120%!important } h2, h2 a { line-height:120%!important } h3, h3 a { line-height:120%!important } h4, h4 a { line-height:120%!important } h5, h5 a { line-height:120%!important } h6, h6 a { line-height:120%!important } .bi p { } h1 { font-size:30px!important; text-align:center } h2 { font-size:26px!important; text-align:center } h3 { font-size:20px!important; text-align:center } h4 { font-size:24px!important; text-align:left } h5 { font-size:20px!important; text-align:left } h6 { font-size:16px!important; text-align:left } .bi p, .bi a { font-size:16px!important } .bd, .bd h1, .bd h2, .bd h3, .bd h4, .bd h5, .bd h6 { text-align:center!important } .be, .be h1, .be h2, .be h3, .be h4, .be h5, .be h6 { text-align:left!important }
@@ -298,51 +239,24 @@
         }
     ];
 
-    // Link Preview logic
     editor.addEventListener('mouseover', (e) => {
         const target = e.target.closest('a');
-        if (target) {
-            preview.innerText = target.getAttribute('href') || 'No URL';
-            preview.style.display = 'block';
-        }
+        if (target) { preview.innerText = target.getAttribute('href'); preview.style.display = 'block'; }
     });
-
     editor.addEventListener('mousemove', (e) => {
-        if (preview.style.display === 'block') {
-            preview.style.left = (e.clientX + 15) + 'px';
-            preview.style.top = (e.clientY + 15) + 'px';
-        }
+        if (preview.style.display === 'block') { preview.style.left = (e.clientX + 15) + 'px'; preview.style.top = (e.clientY + 15) + 'px'; }
     });
+    editor.addEventListener('mouseout', () => preview.style.display = 'none');
 
-    editor.addEventListener('mouseout', (e) => {
-        if (e.target.tagName === 'A' || e.target.closest('a')) {
-            preview.style.display = 'none';
-        }
-    });
-
-    // Auto-clean on paste
     editor.addEventListener('paste', function(e) {
         e.preventDefault();
         let text = e.clipboardData.getData('text/plain');
-        let htmlContent = text.replace(/\n/g, '<br>');
-        
-        const span = document.createElement('span');
-        span.style.fontFamily = 'Arial, sans-serif';
-        span.style.fontSize = '13pt';
-        span.innerHTML = htmlContent;
-
+        let htmlContent = text.split(/\r?\n/).map(line => line.trim() === '' ? '<br>' : `<div>${line}</div>`).join('');
+        const wrapper = document.createElement('div');
+        wrapper.style.fontFamily = 'Arial, sans-serif'; wrapper.style.fontSize = '13pt';
+        wrapper.innerHTML = htmlContent;
         const sel = window.getSelection();
-        if (sel.rangeCount) {
-            const range = sel.getRangeAt(0);
-            range.deleteContents();
-            range.insertNode(span);
-            range.setStartAfter(span);
-            range.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(range);
-        }
-        updateCode();
-        showToast();
+        if (sel.rangeCount) { const range = sel.getRangeAt(0); range.deleteContents(); range.insertNode(wrapper); updateCode(); }
     });
 
     function init() {
@@ -350,111 +264,42 @@
             const div = document.createElement('div');
             div.className = 'template-item';
             div.innerText = t.name;
-            div.onclick = () => loadTpl(i, div);
+            div.onclick = () => { editor.innerHTML = t.html; applyStyles(editor); updateCode(); 
+                document.querySelectorAll('.template-item').forEach(x => x.classList.remove('active'));
+                div.classList.add('active');
+            };
             document.getElementById('tpl-list').appendChild(div);
         });
     }
 
-    function loadTpl(idx, el) {
-        editor.innerHTML = TPLS[idx].html;
-        applyGlobalStyles(editor);
-        document.getElementById('active-tpl-name').innerText = TPLS[idx].name;
-        document.querySelectorAll('.template-item').forEach(i => i.classList.remove('active'));
-        el.classList.add('active');
-        updateCode();
+    function applyStyles(parent) {
+        parent.querySelectorAll('*').forEach(node => {
+            node.setAttribute('contenteditable', 'true');
+            if (node.tagName !== 'A' && node.tagName !== 'IMG') {
+                node.style.fontFamily = 'Arial, sans-serif';
+                node.style.fontSize = '13pt';
+                node.style.lineHeight = '1.5';
+            }
+        });
     }
 
     function exec(cmd) { document.execCommand(cmd, false, null); updateCode(); }
-    
     function addLink() {
-        const url = prompt("Vložte URL adresu:");
-        if (url) { 
-            document.execCommand('createLink', false, url); 
-            const sel = window.getSelection();
-            if (sel.rangeCount > 0) {
-                let parent = sel.anchorNode.parentElement;
-                if (parent.tagName !== 'A') parent = parent.closest('a');
-                if (parent && parent.tagName === 'A') {
-                    parent.style.color = MY_BLUE;
-                    parent.style.textDecoration = 'underline';
-                    parent.style.fontFamily = 'Arial, sans-serif';
-                    parent.style.fontSize = '13pt';
-                }
-            }
-            updateCode(); 
-        }
+        const url = prompt("Vložte URL:");
+        if (url) { document.execCommand('createLink', false, url); updateCode(); }
     }
-
-    function cleanSelection() {
-        document.execCommand('removeFormat', false, null);
-        const sel = window.getSelection();
-        if (!sel.isCollapsed) {
-            const span = document.createElement('span');
-            span.style.fontFamily = 'Arial, sans-serif';
-            span.style.fontSize = '13pt';
-            try {
-                const range = sel.getRangeAt(0);
-                range.surroundContents(span);
-            } catch(e) {
-                document.execCommand('fontName', false, 'Arial');
-            }
-        }
-        updateCode();
-    }
-
+    function cleanSelection() { document.execCommand('removeFormat', false, null); updateCode(); }
     function updateCode() { output.value = editor.innerHTML; }
     editor.addEventListener('input', updateCode);
-
-    function applyGlobalStyles(parent) {
-        parent.querySelectorAll('*').forEach(node => {
-            node.setAttribute('contenteditable', 'true');
-            if (node.tagName !== 'A') {
-                node.style.fontFamily = 'Arial, sans-serif';
-                node.style.fontSize = '13pt';
-            }
-            if (node.tagName === 'TD' || node.tagName === 'TABLE') {
-                node.style.cursor = 'text';
-            }
-        });
-    }
-
-    function exportMail() {
-        const temp = document.createElement('div');
-        temp.innerHTML = editor.innerHTML;
-        temp.querySelectorAll('*').forEach(el => {
-            if (el.tagName !== 'A') {
-                el.style.fontFamily = 'Arial, sans-serif';
-                el.style.fontSize = '13pt';
-            }
-        });
-        const finalHtml = temp.innerHTML;
-        navigator.clipboard.writeText(finalHtml).then(() => { 
-            alert("HTML kód exportovaný a skopírovaný do schránky!"); 
-        });
-    }
-
-    function openHtmlModal() {
-        document.getElementById('html-import-area').value = "";
-        document.getElementById('html-modal').style.display = 'flex';
-    }
-
+    function exportMail() { navigator.clipboard.writeText(editor.innerHTML).then(() => alert("Kód šablóny bol úspešne skopírovaný!")); }
+    function openHtmlModal() { document.getElementById('html-import-area').value = ''; document.getElementById('html-modal').style.display = 'flex'; }
     function closeHtmlModal() { document.getElementById('html-modal').style.display = 'none'; }
-
     function applyHtml() {
-        const raw = document.getElementById('html-import-area').value.trim();
-        if(!raw) return;
-        editor.innerHTML = raw;
-        applyGlobalStyles(editor);
+        editor.innerHTML = document.getElementById('html-import-area').value;
+        applyStyles(editor);
         updateCode();
         closeHtmlModal();
     }
-
-    function showToast() {
-        const t = document.getElementById('paste-toast');
-        t.classList.add('show');
-        setTimeout(() => t.classList.remove('show'), 2000);
-    }
-
     init();
 </script>
 </body>
