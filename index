@@ -47,58 +47,105 @@
     const tooltip = document.getElementById('url-tooltip');
 
     // Tvoja pôvodná štruktúra s vymeneným logom a Arialom
-    const TPL_WELCOME = `
-    <div dir="ltr" style="background-color:#F6F6F6; font-family: Arial, sans-serif;">
+   <!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <meta name="x-apple-disable-message-reformatting">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta content="telephone=no" name="format-detection">
+    <title>Welcome letter</title>
+    <style type="text/css">
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif !important; }
+        .rollover:hover .rollover-first { max-height:0px!important; display:none!important; }
+        .rollover:hover .rollover-second { max-height:none!important; display:block!important; }
+        @media only screen and (max-width:600px) {
+            .o, .p { width:100%!important; float:none!important; }
+            .adapt-img { width:100%!important; height:auto!important; }
+            .img-9237 { width:47px!important; height:47px!important; }
+        }
+    </style>
+</head>
+<body style="background-color:#F6F6F6; margin:0; padding:0;">
+    <div dir="ltr" style="background-color:#F6F6F6">
         <table cellpadding="0" cellspacing="0" width="100%" style="background-color:#F6F6F6">
-            <tr>
-                <td align="center">
-                    <table width="600" cellpadding="0" cellspacing="0" style="background-color:#efefef;">
-                        <tr>
-                            <td bgcolor="#000000" style="padding:10px 20px;">
-                                <table width="100%" cellpadding="0" cellspacing="0">
-                                    <tr>
-                                        <td width="60" align="left">
-                                            <img src="https://ekbdp.stripocdn.email/content/guids/CABINET_d57212fd479c0debee88e429cfb3654362f20cfc24d1f7de496921d97489495d/images/mask_group_3.png" width="47" height="47" style="display:block;">
-                                        </td>
-                                        <td align="right">
-                                            <table cellpadding="0" cellspacing="0" bgcolor="#ffeb3b" style="border-radius:6px; width:400px;">
-                                                <tr>
-                                                    <td style="padding:15px; font-family:Arial, sans-serif; font-size:16px; color:#000000; font-weight:bold;">
-                                                        Důležité info ke kurzu „{{automation.product.title}}“
-                                                    </td>
-                                                </tr>
-                                            </table>
-                                        </td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td bgcolor="#ffffff" style="padding:20px; font-family:Arial, sans-serif; font-size:18px; line-height:1.5;">
-                                <img src="https://ekbdp.stripocdn.email/content/guids/CABINET_d57212fd479c0debee88e429cfb3654362f20cfc24d1f7de496921d97489495d/images/mask_group_3.png" width="560" style="display:block; margin-bottom:20px; border-radius:10px;">
-                                <strong>Ahoj! 👋</strong><br><br>
-                                Vítej v kurzu {{automation.product.title}} s {{lecturer}}. Jsme rádi, že sis pro svůj rozvoj vybral*a právě nás.
-                                <br><br>
-                                📅 <strong>Kdy začínáme?</strong>... (atď)
-                            </td>
-                        </tr>
-                        <tr>
-                            <td bgcolor="#000000" style="padding:15px 20px;">
-                                <table width="100%" style="color:#ffffff; font-family:Arial; font-size:11px;">
-                                    <tr>
-                                        <td>Zavolej nám:<br>+420 790 285 029</td>
-                                        <td align="right">Technická podpora:<br>info@l-a-b-a.cz</td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </div>`;
+            <tbody>
+                <tr>
+                    <td align="center">
+                        <table align="center" cellpadding="0" cellspacing="0" width="600" style="background-color:#000000;">
+                            <tbody>
+                                <tr>
+                                    <td style="padding:20px;">
+                                        <table cellpadding="0" cellspacing="0" width="100%">
+                                            <tr>
+                                                <td width="60" valign="middle">
+                                                    <img src="https://ekbdp.stripocdn.email/content/guids/CABINET_d57212fd479c0debee88e429cfb3654362f20cfc24d1f7de496921d97489495d/images/mask_group_3.png" width="47" height="47" style="display:block; border:0;">
+                                                </td>
+                                                <td valign="middle" style="padding-left:15px;">
+                                                    <table cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffeb3b; border-radius:6px;">
+                                                        <tr>
+                                                            <td style="padding:15px; font-family:Arial, sans-serif; font-size:16px; color:#000000; font-weight:bold; line-height:1.3;">
+                                                                Důležité info ke kurzu „{{automation.product.title}}“
+                                                            </td>
+                                                        </tr>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <table align="center" cellpadding="0" cellspacing="0" width="600" style="background-color:#ffffff;">
+                            <tbody>
+                                <tr>
+                                    <td style="padding:20px 20px 10px 20px;">
+                                        <img src="https://ekbdp.stripocdn.email/content/guids/CABINET_d57212fd479c0debee88e429cfb3654362f20cfc24d1f7de496921d97489495d/images/mask_group_3.png" width="560" class="adapt-img" style="display:block; width:100%; border-radius:10px;">
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:20px; font-family:Arial, sans-serif; font-size:18px; color:#000000; line-height:1.5;">
+                                        <strong>Ahoj! 👋</strong><br><br>
+                                        Vítej v kurzu {{automation.product.title}} s {{lecturer}}. Jsme rádi, že sis pro svůj rozvoj vybral*a právě nás.<br><br>
+                                        📅 <strong>Kdy začínáme?</strong><br>
+                                        První lekce začíná {{date}} v {{time}}.<br>
+                                        Lekce probíhají každé {{days}} od {{time}} do {{time}} až do {{end_date}}.<br><br>
+                                        ➡️ <strong>Otevřít kurz v LMS</strong><br>
+                                        Datum a čas lekce najdeš vždy v LMS. Taky ti posíláme <strong>Google kalendář</strong> se všemi termíny – stačí kliknout na odkaz a přidat si ho.<br><br>
+                                        <strong>💻 Kde kurz probíhá?</strong> Kurz poběží na naší vzdělávací platformě <strong>LMS</strong>, kterou můžeš spustit na <a href="#" style="color:#1f5fcf; text-decoration:underline;">webu</a> i v aplikaci.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <table align="center" cellpadding="0" cellspacing="0" width="600" style="background-color:#000000;">
+                            <tr>
+                                <td style="padding:10px 20px;">
+                                    <table cellpadding="0" cellspacing="0" width="100%">
+                                        <tr>
+                                            <td width="50%"><a href="tel:+420790285029"><img src="https://ekbdp.stripocdn.email/content/guids/CABINET_97c6bb329eb004726d8a779919880a7badaf3a5c3e3e2c8b1ec2375540164554/images/frame_3_1.png" width="270" style="display:block; width:100%;"></a></td>
+                                            <td width="50%"><a href="mailto:info@l-a-b-a.cz"><img src="https://ekbdp.stripocdn.email/content/guids/CABINET_d57212fd479c0debee88e429cfb3654362f20cfc24d1f7de496921d97489495d/images/frame_4_1.png" width="270" style="display:block; width:100%;"></a></td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
 
-    const TPLS = [{ name: "01. Welcome letter", html: TPL_WELCOME }];
+                        <table align="center" cellpadding="0" cellspacing="0" width="600">
+                            <tr>
+                                <td align="center" style="padding:20px; font-family:Arial, sans-serif; font-size:11px; color:#333333; line-height:1.5;">
+                                    Copyright©️ 2026, Laba Czech vzdělávání s.r.o. All Rights Reserved.<br>{{address}}<br><br>
+                                    Tuto provozní zprávu jste obdrželi, protože jste naším zákazníkem. Nejedná se o marketingové sdělení.
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>;
 
     function init() {
         TPLS.forEach((t, i) => {
