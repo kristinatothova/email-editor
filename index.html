@@ -152,71 +152,68 @@ const htmlOut = document.getElementById('html-out');
 
 // ── PASTE CLEANER ────────────────────────────────────────────
 function cleanHTML(html) {
-    // Step 1: Pre-clean the raw HTML string before parsing
-    // Remove Google Docs / Apple artifacts that survive DOM parsing
+    // Step 1: Minimal string pre-clean — only remove things that corrupt DOM parsing
     html = html
-        // Remove StartFragment/EndFragment comments
         .replace(/<!--StartFragment-->|<!--EndFragment-->/g, '')
-        // Remove Apple interchange newlines
-        .replace(/<br\s+class="Apple-interchange-newline"\s*\/?>/gi, '')
-        // Remove meta tags injected by Google Docs
-        .replace(/<meta\s[^>]*>/gi, '')
-        // Remove Google Docs internal guid b-wrapper:
-        // <b style="font-weight:normal;" id="docs-internal-guid-..."> ... </b>
-        .replace(/<b\s[^>]*docs-internal-guid[^>]*>/gi, '')
-        // Remove orphaned </b> left from guid wrapper (only if it had no matching open)
-        // — safer to just strip ALL <b> with font-weight:normal (purely structural)
-        .replace(/<b\s+style="font-weight:\s*normal[^"]*"[^>]*>/gi, '')
-        // Remove dir="ltr/rtl" attributes everywhere
-        .replace(/\s+dir="(?:ltr|rtl)"/gi, '');
+        .replace(/<br[^>]+class="Apple-interchange-newline"[^>]*>/gi, '')
+        .replace(/<meta[^>]*>/gi, '');
+    // Note: do NOT regex-remove <b id="docs-internal-guid"> here — that leaves
+    // orphaned </b> which causes the browser to create implicit wrapper elements
+    // when parsing d.innerHTML. Handle it in DOM instead (Step 2b below).
 
-    // Step 2: Parse into DOM and strip all inline styles
+    // Step 2a: Parse into DOM
     const d = document.createElement('div');
     d.innerHTML = html;
 
-    // Recursive style stripper — WHITELIST approach.
-    // Instead of blacklisting known-bad properties (always incomplete),
-    // we keep ONLY meaningful formatting and nuke everything else.
+    // Step 2b: Unwrap docs-internal-guid <b> wrappers IN THE DOM.
+    // This is safer than regex — avoids orphaned </b> tags that scramble the DOM.
+    d.querySelectorAll('b[id^="docs-internal-guid"], b[style*="font-weight:normal"], b[style*="font-weight: normal"]').forEach(el => {
+        const parent = el.parentNode;
+        if (parent) {
+            while (el.firstChild) parent.insertBefore(el.firstChild, el);
+            parent.removeChild(el);
+        }
+    });
+
+    // Step 3: WHITELIST style stripper.
+    // Nukes the entire style attribute and re-applies ONLY bold/italic/underline.
+    // This handles any remaining CSS Google Docs / Safari / Word can invent.
     function strip(n) {
         if (n.nodeType !== 1) return;
         const tag = n.tagName;
         const s = n.style;
 
-        // Save only what we want to keep
-        const isBold      = s.fontWeight && (s.fontWeight === 'bold' || parseInt(s.fontWeight) >= 600);
+        // Save meaningful formatting before nuking
+        const isBold      = s.fontWeight === 'bold' || parseInt(s.fontWeight) >= 600;
         const isItalic    = s.fontStyle === 'italic';
         const isUnderline = s.textDecoration && s.textDecoration.includes('underline');
 
-        // Nuke the ENTIRE style attribute — removes every Google Docs / webkit / Word property
+        // Nuke ALL inline styles
         n.removeAttribute('style');
 
-        // Re-apply only the meaningful formatting
-        if (isBold)      s.fontWeight    = 'bold';
-        if (isItalic)    s.fontStyle     = 'italic';
+        // Re-apply only the ones that matter
+        if (isBold)      s.fontWeight     = 'bold';
+        if (isItalic)    s.fontStyle      = 'italic';
         if (isUnderline) s.textDecoration = 'underline';
 
-        // Remove Google Docs id attributes
+        // Clean junk attributes
         const id = n.getAttribute('id') || '';
         if (id.startsWith('docs-internal-guid')) n.removeAttribute('id');
-
-        // Remove data-* attributes (Word / Docs junk)
-        Array.from(n.attributes).forEach(attr => {
-            if (attr.name.startsWith('data-') || attr.name === 'dir') n.removeAttribute(attr.name);
+        Array.from(n.attributes).forEach(a => {
+            if (a.name.startsWith('data-') || a.name === 'dir') n.removeAttribute(a.name);
         });
 
-        // Unwrap purely structural tags with no remaining meaning
+        // Unwrap structurally meaningless tags
         const noStyle = !n.getAttribute('style') || n.getAttribute('style').trim() === '';
         const noClass = !n.getAttribute('class');
         const noHref  = !n.getAttribute('href');
+        const canUnwrap = ['SPAN','FONT','H1','H2','H3','H4','H5','H6'].includes(tag)
+                       || ((tag === 'B' || tag === 'STRONG') && !isBold);
 
-        const unwrapTags = ['SPAN','FONT','H1','H2','H3','H4','H5','H6'];
-        const isNeutralB = (tag === 'B' || tag === 'STRONG') && !isBold;
-
-        if ((unwrapTags.includes(tag) || isNeutralB) && noStyle && noClass && noHref) {
+        if (canUnwrap && noStyle && noClass && noHref) {
             const parent = n.parentNode;
             if (parent) {
-                // Process children BEFORE moving them
-                Array.from(n.childNodes).forEach(strip);
+                Array.from(n.childNodes).forEach(strip); // clean children first
                 while (n.firstChild) parent.insertBefore(n.firstChild, n);
                 parent.removeChild(n);
                 return;
@@ -226,8 +223,27 @@ function cleanHTML(html) {
         Array.from(n.childNodes).forEach(strip);
     }
 
-    // Step 3: Convert content <div> → <p>
-    // Google Docs often pastes paragraphs as div, not p
+    Array.from(d.childNodes).forEach(strip);
+
+    // Step 4: SAFETY NET — brute-force remove any spans still inside <p> elements.
+    // Catches edge cases where strip() couldn't unwrap (e.g. spans with a class).
+    d.querySelectorAll('p span, p font').forEach(el => {
+        // Keep spans that have meaningful formatting
+        const s = el.style;
+        const isBold      = s.fontWeight === 'bold' || parseInt(s.fontWeight) >= 600;
+        const isItalic    = s.fontStyle === 'italic';
+        const isUnderline = s.textDecoration && s.textDecoration.includes('underline');
+        if (!isBold && !isItalic && !isUnderline) {
+            // Unwrap — move children to parent, remove span
+            const parent = el.parentNode;
+            if (parent) {
+                while (el.firstChild) parent.insertBefore(el.firstChild, el);
+                parent.removeChild(el);
+            }
+        }
+    });
+
+    // Step 5: Convert content <div> → <p>
     Array.from(d.querySelectorAll('div')).reverse().forEach(el => {
         const hasBlockChild = Array.from(el.children).some(c =>
             ['DIV','P','TABLE','UL','OL','BLOCKQUOTE'].includes(c.tagName)
@@ -239,28 +255,37 @@ function cleanHTML(html) {
         }
     });
 
-    // Step 4: Apply full canonical Mailchimp-safe style to every <p>
+    // Step 6: Apply canonical style to every <p>
+    // Also collapse empty paragraphs (including those that had empty spans)
     const BODY  = 'Margin:0;mso-line-height-rule:exactly;font-family:Arial,sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px;';
     const SPACE = 'Margin:0;font-size:8px;line-height:8px;';
 
     d.querySelectorAll('p').forEach(el => {
-        const isEmpty = el.textContent.trim() === '' || el.innerHTML.trim() === '<br>';
+        // Strip zero-width / invisible chars when checking emptiness
+        const text = el.textContent.replace(/[\u00a0\u200b\u200c\u200d\ufeff]/g, '').trim();
+        const isEmpty = text === '' || el.innerHTML.trim() === '<br>';
         el.setAttribute('style', isEmpty ? SPACE : BODY);
         if (isEmpty) el.innerHTML = '&nbsp;';
     });
 
-    // Step 5: Clean up <li>
+    // Step 7: Clean <li>
     d.querySelectorAll('li').forEach(el => {
         el.setAttribute('style', 'color:#333333;margin:0 0 8px;font-size:18px;line-height:27px;font-family:Arial,sans-serif;');
-        // Strip any inner spans that survived
-        el.querySelectorAll('span').forEach(sp => {
-            while (sp.firstChild) sp.parentNode.insertBefore(sp.firstChild, sp);
-            sp.parentNode && sp.parentNode.removeChild(sp);
+        el.querySelectorAll('span,font').forEach(sp => {
+            const s = sp.style;
+            const isBold = s.fontWeight === 'bold' || parseInt(s.fontWeight) >= 600;
+            const isItalic = s.fontStyle === 'italic';
+            const isUnderline = s.textDecoration && s.textDecoration.includes('underline');
+            if (!isBold && !isItalic && !isUnderline) {
+                while (sp.firstChild) sp.parentNode.insertBefore(sp.firstChild, sp);
+                sp.parentNode && sp.parentNode.removeChild(sp);
+            }
         });
     });
 
     return d.innerHTML;
 }
+
 
 
 
