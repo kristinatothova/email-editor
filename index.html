@@ -174,59 +174,57 @@ function cleanHTML(html) {
     const d = document.createElement('div');
     d.innerHTML = html;
 
-    // Recursive style stripper
+    // Recursive style stripper — WHITELIST approach.
+    // Instead of blacklisting known-bad properties (always incomplete),
+    // we keep ONLY meaningful formatting and nuke everything else.
     function strip(n) {
         if (n.nodeType !== 1) return;
         const tag = n.tagName;
         const s = n.style;
 
-        // Remove all formatting properties Google Docs / Word inject
-        ['font-family','font-size','background-color','background',
-         'letter-spacing','vertical-align','white-space','line-height',
-         'margin','margin-top','margin-bottom','margin-left','margin-right',
-         'padding','padding-top','padding-bottom',
-         'font-variant','text-indent','orphans','widows'
-        ].forEach(p => s.removeProperty(p));
+        // Save only what we want to keep
+        const isBold      = s.fontWeight && (s.fontWeight === 'bold' || parseInt(s.fontWeight) >= 600);
+        const isItalic    = s.fontStyle === 'italic';
+        const isUnderline = s.textDecoration && s.textDecoration.includes('underline');
 
-        // Strip neutral Google Docs resets: font-style:normal and text-decoration:none
-        // These look meaningful but are just default values providing no formatting
-        if (s.fontStyle === 'normal') s.removeProperty('font-style');
-        if (s.textDecoration === 'none') s.removeProperty('text-decoration');
+        // Nuke the ENTIRE style attribute — removes every Google Docs / webkit / Word property
+        n.removeAttribute('style');
 
-        // Strip rgb() colors (Google Docs uses these; template uses hex)
-        if (s.color && s.color.startsWith('rgb')) s.removeProperty('color');
-        // Strip font-weight:normal (Google Docs neutral wrapper)
-        if (s.fontWeight === 'normal' || s.fontWeight === '400') s.removeProperty('font-weight');
+        // Re-apply only the meaningful formatting
+        if (isBold)      s.fontWeight    = 'bold';
+        if (isItalic)    s.fontStyle     = 'italic';
+        if (isUnderline) s.textDecoration = 'underline';
 
-        // Remove Google Docs id attributes (docs-internal-guid-*)
+        // Remove Google Docs id attributes
         const id = n.getAttribute('id') || '';
         if (id.startsWith('docs-internal-guid')) n.removeAttribute('id');
 
-        // Unwrap tags that carry no meaning after stripping:
-        // spans, fonts, headings (converted to p below), b/strong with font-weight:normal
-        const shouldUnwrap =
-            ['SPAN','FONT','H1','H2','H3','H4','H5','H6'].includes(tag) ||
-            (tag === 'B' && !s.fontWeight && !n.querySelector('b,strong,i,em,u,a')) ||
-            (tag === 'STRONG' && !s.fontWeight);
+        // Remove data-* attributes (Word / Docs junk)
+        Array.from(n.attributes).forEach(attr => {
+            if (attr.name.startsWith('data-') || attr.name === 'dir') n.removeAttribute(attr.name);
+        });
 
-        if (shouldUnwrap) {
-            const noStyle = !n.getAttribute('style') || n.getAttribute('style').trim() === '';
-            const noClass = !n.getAttribute('class');
-            const noHref  = !n.getAttribute('href');
-            if (noStyle && noClass && noHref) {
-                const parent = n.parentNode;
-                if (parent) {
-                    while (n.firstChild) parent.insertBefore(n.firstChild, n);
-                    parent.removeChild(n);
-                    return;
-                }
+        // Unwrap purely structural tags with no remaining meaning
+        const noStyle = !n.getAttribute('style') || n.getAttribute('style').trim() === '';
+        const noClass = !n.getAttribute('class');
+        const noHref  = !n.getAttribute('href');
+
+        const unwrapTags = ['SPAN','FONT','H1','H2','H3','H4','H5','H6'];
+        const isNeutralB = (tag === 'B' || tag === 'STRONG') && !isBold;
+
+        if ((unwrapTags.includes(tag) || isNeutralB) && noStyle && noClass && noHref) {
+            const parent = n.parentNode;
+            if (parent) {
+                // Process children BEFORE moving them
+                Array.from(n.childNodes).forEach(strip);
+                while (n.firstChild) parent.insertBefore(n.firstChild, n);
+                parent.removeChild(n);
+                return;
             }
         }
 
         Array.from(n.childNodes).forEach(strip);
     }
-
-    Array.from(d.childNodes).forEach(strip);
 
     // Step 3: Convert content <div> → <p>
     // Google Docs often pastes paragraphs as div, not p
