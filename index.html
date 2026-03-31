@@ -247,42 +247,56 @@ editor.addEventListener('paste', e => {
 });
 
 // ── EXPORT ───────────────────────────────────────────────────
-// Safe export: fixes font-family + enforces 18px on all content paragraphs.
-// Does NOT strip structural styles (padding, margin, width on td/table).
+// Builds a clean, Mailchimp-compatible HTML export.
+// Every <p> gets the full canonical inline style so LearnWorlds/Mailchimp
+// cannot override font-size with its own default CSS.
 function exportWithArial(html) {
     const d = document.createElement('div');
     d.innerHTML = html;
 
     // Remove editor artifacts
     d.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
-
     d.querySelectorAll('*').forEach(el => {
-        const s = el.style;
-        if (!s) return;
+        if (el.style && el.style.cursor === 'text') el.style.removeProperty('cursor');
+    });
 
-        // Fix cursor added by makeEditable
-        if (s.cursor === 'text') s.removeProperty('cursor');
-
-        // Fix font-family everywhere
-        if (s.fontFamily) s.fontFamily = 'Arial, sans-serif';
+    // Fix font-family on ALL elements via regex on style attribute string
+    // (JS style API converts hex to rgb, so use string replacement to stay clean)
+    d.querySelectorAll('*').forEach(el => {
         const sa = el.getAttribute('style');
         if (sa && sa.includes('font-family')) {
-            el.setAttribute('style', sa.replace(/font-family\s*:[^;"]*/g, 'font-family:Arial, sans-serif'));
+            el.setAttribute('style', sa.replace(/font-family\s*:[^;"]*/g, 'font-family:Arial,sans-serif'));
         }
+    });
 
-        // Enforce 18px on content paragraphs and list items
-        // Skip structural elements (table, tr, td with width/padding layout styles)
-        // and footer elements (font-size:11px)
-        const tag = el.tagName;
-        if (['P', 'LI', 'DIV'].includes(tag)) {
-            const fs = s.fontSize;
-            // Only enforce if missing, wrong unit (pt), or not 11px (footer)
-            if (!fs || (fs && fs.endsWith('pt')) || (fs && fs !== '11px' && fs !== '18px')) {
-                s.fontSize = '18px';
-                s.lineHeight = '27px';
-                if (!s.fontFamily) s.fontFamily = 'Arial, sans-serif';
-            }
-        }
+    // For every <p> element: write the FULL canonical Mailchimp-safe inline style.
+    // This overwrites any partial/incorrect styles and ensures LearnWorlds respects 18px.
+    // Footer paragraphs (font-size:11px) are detected and kept at 11px.
+    d.querySelectorAll('p').forEach(el => {
+        const existing = el.getAttribute('style') || '';
+
+        // Detect footer paragraph (small copyright text)
+        const isFooter = existing.includes('font-size:11px') || existing.includes('font-size: 11px')
+                      || el.textContent.includes('Copyright') || el.textContent.includes('provozní zprávu');
+
+        const color = existing.includes('color:#000000') || existing.includes('color: #000000') || existing.includes('color: rgb(0') ? '#000000' : '#333333';
+        const size  = isFooter ? '11px' : '18px';
+        const lh    = isFooter ? '16.5px' : '27px';
+
+        // Build the full canonical style — same format as template paragraphs
+        el.setAttribute('style',
+            'Margin:0;mso-line-height-rule:exactly;font-family:Arial,sans-serif;' +
+            'line-height:' + lh + ';letter-spacing:0;color:' + color + ';font-size:' + size + ';'
+        );
+    });
+
+    // Same for <li> elements
+    d.querySelectorAll('li').forEach(el => {
+        el.setAttribute('style', 'color:#333333;margin:0px 0px 8px;font-size:18px;line-height:27px;font-family:Arial,sans-serif;');
+        // Fix inner <p> inside li
+        el.querySelectorAll('p').forEach(p => {
+            p.setAttribute('style', 'Margin:0;font-family:Arial,sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px;');
+        });
     });
 
     return d.innerHTML;
