@@ -225,25 +225,7 @@ function cleanHTML(html) {
 
     Array.from(d.childNodes).forEach(strip);
 
-    // Step 4: SAFETY NET — brute-force remove any spans still inside <p> elements.
-    // Catches edge cases where strip() couldn't unwrap (e.g. spans with a class).
-    d.querySelectorAll('p span, p font').forEach(el => {
-        // Keep spans that have meaningful formatting
-        const s = el.style;
-        const isBold      = s.fontWeight === 'bold' || parseInt(s.fontWeight) >= 600;
-        const isItalic    = s.fontStyle === 'italic';
-        const isUnderline = s.textDecoration && s.textDecoration.includes('underline');
-        if (!isBold && !isItalic && !isUnderline) {
-            // Unwrap — move children to parent, remove span
-            const parent = el.parentNode;
-            if (parent) {
-                while (el.firstChild) parent.insertBefore(el.firstChild, el);
-                parent.removeChild(el);
-            }
-        }
-    });
-
-    // Step 5: Convert content <div> → <p>
+    // Step 4: Convert content <div> → <p> (BEFORE safety net so spans inside divs are caught)
     Array.from(d.querySelectorAll('div')).reverse().forEach(el => {
         const hasBlockChild = Array.from(el.children).some(c =>
             ['DIV','P','TABLE','UL','OL','BLOCKQUOTE'].includes(c.tagName)
@@ -255,17 +237,38 @@ function cleanHTML(html) {
         }
     });
 
+    // Step 5: SAFETY NET — strip neutral spans from inside ALL <p> elements.
+    // Runs after div→p so spans that were inside divs are now caught too.
+    function unwrapNeutralSpans(root) {
+        root.querySelectorAll('span, font').forEach(el => {
+            const s = el.style;
+            const isBold      = s.fontWeight === 'bold' || parseInt(s.fontWeight) >= 600;
+            const isItalic    = s.fontStyle === 'italic';
+            const isUnderline = s.textDecoration && s.textDecoration.includes('underline');
+            if (!isBold && !isItalic && !isUnderline) {
+                const parent = el.parentNode;
+                if (parent) {
+                    while (el.firstChild) parent.insertBefore(el.firstChild, el);
+                    parent.removeChild(el);
+                }
+            }
+        });
+    }
+    d.querySelectorAll('p').forEach(unwrapNeutralSpans);
+
     // Step 6: Apply canonical style to every <p>
-    // Also collapse empty paragraphs (including those that had empty spans)
-    const BODY  = 'Margin:0;mso-line-height-rule:exactly;font-family:Arial,sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px;';
-    const SPACE = 'Margin:0;font-size:8px;line-height:8px;';
+    // Empty paragraphs (<p><br></p>) become full-height spacers — this preserves the
+    // blank-line spacing the user set in Google Docs between paragraphs.
+    const BODY = 'Margin:0;mso-line-height-rule:exactly;font-family:Arial,sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px;';
 
     d.querySelectorAll('p').forEach(el => {
-        // Strip zero-width / invisible chars when checking emptiness
         const text = el.textContent.replace(/[\u00a0\u200b\u200c\u200d\ufeff]/g, '').trim();
-        const isEmpty = text === '' || el.innerHTML.trim() === '<br>';
-        el.setAttribute('style', isEmpty ? SPACE : BODY);
-        if (isEmpty) el.innerHTML = '&nbsp;';
+        const isSpacer = text === '' && (el.innerHTML.trim() === '' || el.innerHTML.trim() === '<br>');
+        if (isSpacer) {
+            // Keep as a visible line-height spacer — matches Google Docs paragraph spacing
+            el.innerHTML = '<br>';
+        }
+        el.setAttribute('style', BODY);
     });
 
     // Step 7: Clean <li>
@@ -325,6 +328,21 @@ function exportWithArial(html) {
         const sa = el.getAttribute('style');
         if (sa && sa.includes('font-family')) {
             el.setAttribute('style', sa.replace(/font-family\s*:[^;"]*/g, 'font-family:Arial,sans-serif'));
+        }
+    });
+
+    // Strip neutral spans inside <p> elements — catches any that survived paste cleaning
+    d.querySelectorAll('p span, p font').forEach(el => {
+        const s = el.style;
+        const isBold      = s.fontWeight === 'bold' || parseInt(s.fontWeight) >= 600;
+        const isItalic    = s.fontStyle === 'italic';
+        const isUnderline = s.textDecoration && s.textDecoration.includes('underline');
+        if (!isBold && !isItalic && !isUnderline) {
+            const parent = el.parentNode;
+            if (parent) {
+                while (el.firstChild) parent.insertBefore(el.firstChild, el);
+                parent.removeChild(el);
+            }
         }
     });
 
