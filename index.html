@@ -196,38 +196,45 @@ function cleanHTML(html) {
     d.innerHTML = html;
     Array.from(d.childNodes).forEach(cleanNode);
 
-    // After stripping all styles, enforce correct font/size on every block element
-    // so pasted text always matches the template (18px Arial, #333333)
-    d.querySelectorAll('p, div, li, td, span, b, strong, i, em, u, a').forEach(el => {
-        // Only touch elements that had styles stripped — skip ones with no style attr at all
-        // For block elements: enforce font + size
-        const tag = el.tagName;
-        if (['P','DIV','LI','TD'].includes(tag)) {
-            const cur = el.getAttribute('style') || '';
-            // Don't override if it already has a deliberate font-size (e.g. from template)
-            if (!cur.includes('font-size')) {
-                el.style.fontFamily = 'Arial, sans-serif';
-                el.style.fontSize = '18px';
-                el.style.lineHeight = '27px';
-                el.style.color = '#333333';
-                el.style.margin = '0';
-                el.style.setProperty('mso-line-height-rule', 'exactly');
-            }
+    // Convert content <div> elements to <p> so export treats them uniformly.
+    // Google Docs often pastes paragraphs as <div> not <p>.
+    // Skip divs that are layout wrappers (contain other block elements).
+    d.querySelectorAll('div').forEach(el => {
+        const hasBlockChild = Array.from(el.children).some(c =>
+            ['DIV','P','TABLE','UL','OL','BLOCKQUOTE'].includes(c.tagName)
+        );
+        if (!hasBlockChild && el.textContent.trim() !== '') {
+            const p = document.createElement('p');
+            p.innerHTML = el.innerHTML;
+            // Copy any remaining style
+            const st = el.getAttribute('style');
+            if (st) p.setAttribute('style', st);
+            el.parentNode.replaceChild(p, el);
         }
     });
 
-    // Normalize empty paragraphs — consistent small spacer instead of Google Docs huge gaps
-    d.querySelectorAll('p, div').forEach(el => {
+    // Now apply the full canonical Mailchimp-safe style to every <p>
+    const BODY_STYLE = 'Margin:0;mso-line-height-rule:exactly;font-family:Arial,sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px;';
+    d.querySelectorAll('p').forEach(el => {
         const text = el.textContent.trim();
         const onlyBr = el.innerHTML.trim() === '<br>';
         if (text === '' || onlyBr) {
+            // Empty line spacer
             el.innerHTML = '&nbsp;';
-            el.setAttribute('style', 'margin:0;line-height:10px;font-size:10px;');
+            el.setAttribute('style', 'Margin:0;font-size:10px;line-height:10px;');
+        } else {
+            el.setAttribute('style', BODY_STYLE);
         }
+    });
+
+    // Apply canonical style to <li> as well
+    d.querySelectorAll('li').forEach(el => {
+        el.setAttribute('style', 'color:#333333;margin:0px 0px 8px;font-size:18px;line-height:27px;font-family:Arial,sans-serif;');
     });
 
     return d.innerHTML;
 }
+
 
 // ── PASTE HANDLER ────────────────────────────────────────────
 editor.addEventListener('paste', e => {
