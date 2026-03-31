@@ -331,8 +331,11 @@ function exportWithArial(html) {
         }
     });
 
-    // Strip neutral spans inside <p> elements — catches any that survived paste cleaning
-    d.querySelectorAll('p span, p font').forEach(el => {
+    // SPAN CLEANUP — two-pass approach:
+    // Pass 1: Try to remove neutral spans entirely (no bold/italic/underline)
+    // Convert NodeList to Array first so removals don't affect iteration
+    Array.from(d.querySelectorAll('p span, p font')).forEach(el => {
+        if (!el.parentNode) return; // already removed (was inside another span we removed)
         const s = el.style;
         const isBold      = s.fontWeight === 'bold' || parseInt(s.fontWeight) >= 600;
         const isItalic    = s.fontStyle === 'italic';
@@ -344,6 +347,23 @@ function exportWithArial(html) {
                 parent.removeChild(el);
             }
         }
+    });
+
+    // Pass 2: For any spans that survived (Mailchimp may re-add them), explicitly
+    // set font-size:18px so LearnWorlds can never render them at the wrong size.
+    // Use string setAttribute to avoid JS style API converting hex to rgb.
+    d.querySelectorAll('p span, p font').forEach(el => {
+        const sa = el.getAttribute('style') || '';
+        // Build clean style: keep only bold/italic/underline, add explicit 18px
+        const s = el.style;
+        const isBold      = s.fontWeight === 'bold' || parseInt(s.fontWeight) >= 600;
+        const isItalic    = s.fontStyle === 'italic';
+        const isUnderline = s.textDecoration && s.textDecoration.includes('underline');
+        let newStyle = 'font-size:18px;font-family:Arial,sans-serif;line-height:27px;color:#333333;letter-spacing:0;';
+        if (isBold)      newStyle += 'font-weight:bold;';
+        if (isItalic)    newStyle += 'font-style:italic;';
+        if (isUnderline) newStyle += 'text-decoration:underline;';
+        el.setAttribute('style', newStyle);
     });
 
     // For every <p> element: write the FULL canonical Mailchimp-safe inline style.
