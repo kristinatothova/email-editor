@@ -247,18 +247,28 @@ editor.addEventListener('paste', e => {
 });
 
 // ── EXPORT ───────────────────────────────────────────────────
+// Export ONLY replaces font-family with Arial — does NOT strip structural styles.
+// cleanNode is for paste only; running it on the full template breaks td padding/layout.
 function exportWithArial(html) {
     const d = document.createElement('div');
     d.innerHTML = html;
-    Array.from(d.childNodes).forEach(cleanNode);
+
+    // Remove contenteditable attributes added by makeEditable
+    d.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+
+    // Only fix font-family — leave all other styles (padding, margin, width) untouched
     d.querySelectorAll('*').forEach(el => {
-        if (el.style && el.style.fontFamily) el.style.fontFamily = 'Arial, sans-serif';
         const sa = el.getAttribute('style');
-        if (sa && sa.includes('font-family'))
+        if (sa && sa.includes('font-family')) {
             el.setAttribute('style', sa.replace(/font-family\s*:[^;"]*/g, 'font-family:Arial, sans-serif'));
+        }
+        // Also fix cursor style added by makeEditable
+        if (el.style && el.style.cursor === 'text') el.style.removeProperty('cursor');
     });
+
     return d.innerHTML;
 }
+
 
 function doExport() {
     const out = exportWithArial(editor.innerHTML);
