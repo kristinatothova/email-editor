@@ -150,90 +150,114 @@ const editor = document.getElementById('editor');
 const htmlOut = document.getElementById('html-out');
 
 // ── PASTE CLEANER ────────────────────────────────────────────
-// Strips ALL formatting from every element — Google Docs pastes font-size/family
-// on block elements (p, div, li) too, not just spans. We strip everything and
-// keep only bold, underline, italic, and links.
-const KEEP_TAGS = new Set(['B','STRONG','I','EM','U','A','BR','UL','OL','LI']);
-const STRIP_TAGS = new Set(['SPAN','FONT','H1','H2','H3','H4','H5','H6']);
-
-function cleanNode(n) {
-    if (n.nodeType !== 1) return;
-    const tag = n.tagName;
-
-    // Strip ALL inline styles from every element — covers p, div, li, span, td etc.
-    // We remove font-family, font-size (pt or px), line-height, color, background,
-    // margin, padding overrides added by Google Docs / Word
-    const s = n.style;
-    ['font-family', 'font-size', 'background-color', 'background',
-     'letter-spacing', 'vertical-align', 'white-space', 'line-height',
-     'margin', 'margin-top', 'margin-bottom', 'margin-left', 'margin-right',
-     'padding', 'padding-top', 'padding-bottom'].forEach(p => s.removeProperty(p));
-
-    // Remove rgb() colors (Google Docs injects these); keep hex template colors
-    if (s.color && s.color.startsWith('rgb')) s.removeProperty('color');
-
-    // Unwrap tags that are purely presentational and empty of meaning after cleaning
-    if (STRIP_TAGS.has(tag)) {
-        const hasClass = n.getAttribute('class');
-        const hasId    = n.getAttribute('id');
-        const hasHref  = n.getAttribute('href');
-        const hasStyle = n.getAttribute('style') && n.getAttribute('style').trim() !== '';
-        if (!hasClass && !hasId && !hasHref && !hasStyle) {
-            const parent = n.parentNode;
-            if (parent) {
-                while (n.firstChild) parent.insertBefore(n.firstChild, n);
-                parent.removeChild(n);
-                return; // children already moved, don't recurse on removed node
-            }
-        }
-    }
-
-    Array.from(n.childNodes).forEach(cleanNode);
-}
-
 function cleanHTML(html) {
+    // Step 1: Pre-clean the raw HTML string before parsing
+    // Remove Google Docs / Apple artifacts that survive DOM parsing
+    html = html
+        // Remove StartFragment/EndFragment comments
+        .replace(/<!--StartFragment-->|<!--EndFragment-->/g, '')
+        // Remove Apple interchange newlines
+        .replace(/<br\s+class="Apple-interchange-newline"\s*\/?>/gi, '')
+        // Remove meta tags injected by Google Docs
+        .replace(/<meta\s[^>]*>/gi, '')
+        // Remove Google Docs internal guid b-wrapper:
+        // <b style="font-weight:normal;" id="docs-internal-guid-..."> ... </b>
+        .replace(/<b\s[^>]*docs-internal-guid[^>]*>/gi, '')
+        // Remove orphaned </b> left from guid wrapper (only if it had no matching open)
+        // — safer to just strip ALL <b> with font-weight:normal (purely structural)
+        .replace(/<b\s+style="font-weight:\s*normal[^"]*"[^>]*>/gi, '')
+        // Remove dir="ltr/rtl" attributes everywhere
+        .replace(/\s+dir="(?:ltr|rtl)"/gi, '');
+
+    // Step 2: Parse into DOM and strip all inline styles
     const d = document.createElement('div');
     d.innerHTML = html;
-    Array.from(d.childNodes).forEach(cleanNode);
 
-    // Convert content <div> elements to <p> so export treats them uniformly.
-    // Google Docs often pastes paragraphs as <div> not <p>.
-    // Skip divs that are layout wrappers (contain other block elements).
-    d.querySelectorAll('div').forEach(el => {
+    // Recursive style stripper
+    function strip(n) {
+        if (n.nodeType !== 1) return;
+        const tag = n.tagName;
+        const s = n.style;
+
+        // Remove all formatting properties Google Docs / Word inject
+        ['font-family','font-size','background-color','background',
+         'letter-spacing','vertical-align','white-space','line-height',
+         'margin','margin-top','margin-bottom','margin-left','margin-right',
+         'padding','padding-top','padding-bottom',
+         'font-variant','text-indent','orphans','widows'
+        ].forEach(p => s.removeProperty(p));
+
+        // Strip rgb() colors (Google Docs uses these; template uses hex)
+        if (s.color && s.color.startsWith('rgb')) s.removeProperty('color');
+        // Strip font-weight:normal (Google Docs neutral wrapper)
+        if (s.fontWeight === 'normal' || s.fontWeight === '400') s.removeProperty('font-weight');
+
+        // Remove Google Docs id attributes (docs-internal-guid-*)
+        const id = n.getAttribute('id') || '';
+        if (id.startsWith('docs-internal-guid')) n.removeAttribute('id');
+
+        // Unwrap tags that carry no meaning after stripping:
+        // spans, fonts, headings (converted to p below), b/strong with font-weight:normal
+        const shouldUnwrap =
+            ['SPAN','FONT','H1','H2','H3','H4','H5','H6'].includes(tag) ||
+            (tag === 'B' && !s.fontWeight && !n.querySelector('b,strong,i,em,u,a')) ||
+            (tag === 'STRONG' && !s.fontWeight);
+
+        if (shouldUnwrap) {
+            const noStyle = !n.getAttribute('style') || n.getAttribute('style').trim() === '';
+            const noClass = !n.getAttribute('class');
+            const noHref  = !n.getAttribute('href');
+            if (noStyle && noClass && noHref) {
+                const parent = n.parentNode;
+                if (parent) {
+                    while (n.firstChild) parent.insertBefore(n.firstChild, n);
+                    parent.removeChild(n);
+                    return;
+                }
+            }
+        }
+
+        Array.from(n.childNodes).forEach(strip);
+    }
+
+    Array.from(d.childNodes).forEach(strip);
+
+    // Step 3: Convert content <div> → <p>
+    // Google Docs often pastes paragraphs as div, not p
+    Array.from(d.querySelectorAll('div')).reverse().forEach(el => {
         const hasBlockChild = Array.from(el.children).some(c =>
             ['DIV','P','TABLE','UL','OL','BLOCKQUOTE'].includes(c.tagName)
         );
-        if (!hasBlockChild && el.textContent.trim() !== '') {
+        if (!hasBlockChild) {
             const p = document.createElement('p');
             p.innerHTML = el.innerHTML;
-            // Copy any remaining style
-            const st = el.getAttribute('style');
-            if (st) p.setAttribute('style', st);
-            el.parentNode.replaceChild(p, el);
+            if (el.parentNode) el.parentNode.replaceChild(p, el);
         }
     });
 
-    // Now apply the full canonical Mailchimp-safe style to every <p>
-    const BODY_STYLE = 'Margin:0;mso-line-height-rule:exactly;font-family:Arial,sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px;';
+    // Step 4: Apply full canonical Mailchimp-safe style to every <p>
+    const BODY  = 'Margin:0;mso-line-height-rule:exactly;font-family:Arial,sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px;';
+    const SPACE = 'Margin:0;font-size:8px;line-height:8px;';
+
     d.querySelectorAll('p').forEach(el => {
-        const text = el.textContent.trim();
-        const onlyBr = el.innerHTML.trim() === '<br>';
-        if (text === '' || onlyBr) {
-            // Empty line spacer
-            el.innerHTML = '&nbsp;';
-            el.setAttribute('style', 'Margin:0;font-size:10px;line-height:10px;');
-        } else {
-            el.setAttribute('style', BODY_STYLE);
-        }
+        const isEmpty = el.textContent.trim() === '' || el.innerHTML.trim() === '<br>';
+        el.setAttribute('style', isEmpty ? SPACE : BODY);
+        if (isEmpty) el.innerHTML = '&nbsp;';
     });
 
-    // Apply canonical style to <li> as well
+    // Step 5: Clean up <li>
     d.querySelectorAll('li').forEach(el => {
-        el.setAttribute('style', 'color:#333333;margin:0px 0px 8px;font-size:18px;line-height:27px;font-family:Arial,sans-serif;');
+        el.setAttribute('style', 'color:#333333;margin:0 0 8px;font-size:18px;line-height:27px;font-family:Arial,sans-serif;');
+        // Strip any inner spans that survived
+        el.querySelectorAll('span').forEach(sp => {
+            while (sp.firstChild) sp.parentNode.insertBefore(sp.firstChild, sp);
+            sp.parentNode && sp.parentNode.removeChild(sp);
+        });
     });
 
     return d.innerHTML;
 }
+
 
 
 // ── PASTE HANDLER ────────────────────────────────────────────
