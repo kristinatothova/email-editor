@@ -45,6 +45,7 @@
         #canvas-wrap { flex: 1; background: #d8dadd; overflow-y: auto; padding: 24px 16px; display: flex; justify-content: center; align-items: flex-start; }
         #editor { width: 600px; min-height: 500px; background: #fff; box-shadow: 0 2px 20px rgba(0,0,0,0.3); outline: none; color: #000; font-family: Arial, sans-serif; }
         #editor a { color: #1a56c4 !important; }
+        #editor td, #editor table { cursor: text; }
 
         /* CODE PANEL */
         #code-panel { width: 320px; min-width: 320px; background: var(--panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
@@ -187,6 +188,11 @@ function cleanHTML(html) {
          'font-variant','text-indent','orphans','widows'
         ].forEach(p => s.removeProperty(p));
 
+        // Strip neutral Google Docs resets: font-style:normal and text-decoration:none
+        // These look meaningful but are just default values providing no formatting
+        if (s.fontStyle === 'normal') s.removeProperty('font-style');
+        if (s.textDecoration === 'none') s.removeProperty('text-decoration');
+
         // Strip rgb() colors (Google Docs uses these; template uses hex)
         if (s.color && s.color.startsWith('rgb')) s.removeProperty('color');
         // Strip font-weight:normal (Google Docs neutral wrapper)
@@ -288,7 +294,6 @@ function exportWithArial(html) {
     // Remove editor artifacts
     d.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
     d.querySelectorAll('*').forEach(el => {
-        if (el.style && el.style.cursor === 'text') el.style.removeProperty('cursor');
     });
 
     // Fix font-family on ALL elements via regex on style attribute string
@@ -470,9 +475,10 @@ document.getElementById('modal').addEventListener('click', e => { if (e.target =
 
 // ── TEMPLATE LOADING ─────────────────────────────────────────
 function makeEditable() {
+    // Only set contenteditable — do NOT touch el.style as it normalizes
+    // the entire style attribute (hex→rgb, loses mso-* properties)
     editor.querySelectorAll('*').forEach(el => {
         el.setAttribute('contenteditable', 'true');
-        if (el.tagName === 'TD' || el.tagName === 'TABLE') el.style.cursor = 'text';
     });
 }
 
