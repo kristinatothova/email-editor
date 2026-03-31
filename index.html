@@ -352,10 +352,24 @@ function exportWithArial(html) {
     // Same for <li> elements
     d.querySelectorAll('li').forEach(el => {
         el.setAttribute('style', 'color:#333333;margin:0px 0px 8px;font-size:18px;line-height:27px;font-family:Arial,sans-serif;');
-        // Fix inner <p> inside li
         el.querySelectorAll('p').forEach(p => {
             p.setAttribute('style', 'Margin:0;font-family:Arial,sans-serif;line-height:27px;letter-spacing:0;color:#333333;font-size:18px;');
         });
+    });
+
+    // Remove leading and trailing empty <p> inside each <td>
+    // These are leftover placeholder paragraphs from the template that create
+    // unwanted gaps when pasted content follows or precedes them.
+    d.querySelectorAll('td').forEach(td => {
+        function isEmptyP(el) {
+            if (!el || el.tagName !== 'P') return false;
+            const txt = el.textContent.replace(/[\u00a0\u200b]/g, '').trim();
+            return txt === '' || el.innerHTML.trim() === '<br>';
+        }
+        // Remove leading empty paragraphs
+        while (isEmptyP(td.firstElementChild)) td.removeChild(td.firstElementChild);
+        // Remove trailing empty paragraphs
+        while (isEmptyP(td.lastElementChild)) td.removeChild(td.lastElementChild);
     });
 
     return d.innerHTML;
