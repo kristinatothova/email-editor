@@ -39,6 +39,7 @@
         .btn-green { background: var(--green); color: #000; }
         .btn-orange { background: var(--orange); color: #000; }
         .btn-purple { background: var(--purple); color: #fff; }
+        .btn-blue { background: var(--blue); color: #fff; }
         #tpl-name-display { font-size: 11px; color: var(--text-dim); margin-left: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
         /* CANVAS */
@@ -63,6 +64,11 @@
         #toast { position: fixed; bottom: 20px; right: 20px; background: #22c55e; color: #fff; padding: 9px 18px; border-radius: 6px; font-size: 12px; font-weight: 700; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 9999; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
         #toast.show { opacity: 1; }
 
+        /* DRAG-DROP OVERLAY */
+        #drop-overlay { display: none; position: fixed; inset: 0; background: rgba(59,130,246,0.85); z-index: 999; align-items: center; justify-content: center; }
+        #drop-overlay.active { display: flex; }
+        #drop-overlay-inner { background: rgba(0,0,0,0.4); border: 3px dashed #fff; border-radius: 16px; padding: 50px 80px; text-align: center; color: #fff; font-size: 22px; font-weight: 700; pointer-events: none; }
+
         /* MODAL */
         #modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; }
         #modal-box { background: #252525; border: 1px solid #444; border-radius: 8px; width: 760px; max-width: 95vw; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.7); }
@@ -84,9 +90,10 @@
 <div id="main">
     <div id="toolbar">
         <button class="btn btn-dark" onclick="fmt('bold')"><b>B</b></button>
+        <button class="btn btn-dark" onclick="fmt('italic')"><i>I</i></button>
         <button class="btn btn-dark" onclick="fmt('underline')"><u>U</u></button>
         <button class="btn btn-dark" onclick="doLink()">🔗 LINK</button>
-        <button class="btn btn-dark" onclick="fmt('unlink')">✂ UNLINK</button>
+        <button class="btn btn-dark" onclick="doUnlink()">✂ UNLINK</button>
         <div class="sep"></div>
         <span style="font-size:10px;color:#666;">↕</span>
         <select id="lh-sel" onchange="applyLineHeight(this.value)" title="Riadkovanie" style="background:#3a3a3a;color:#ccc;border:none;border-radius:4px;padding:3px 4px;font-size:11px;cursor:pointer;width:52px;">
@@ -111,6 +118,8 @@
         <div class="sep"></div>
         <button class="btn btn-orange" onclick="cleanSel()">🧹 CLEAR SAVER</button>
         <button class="btn btn-purple" onclick="openModal()">⬆ VLOŽIŤ HTML</button>
+        <button class="btn btn-blue" onclick="triggerImport()">📂 IMPORT GDOC</button>
+        <input type="file" id="file-import" accept=".html,.htm" style="display:none" onchange="handleFileImport(this)">
         <div class="sep"></div>
         <button class="btn btn-green" onclick="doExport()">🚀 EXPORT KÓD</button>
         <span id="tpl-name-display"></span>
@@ -126,6 +135,10 @@
 </div>
 
 <div id="toast"></div>
+
+<div id="drop-overlay">
+    <div id="drop-overlay-inner">📂 Pusť HTML soubor z Google Docs sem</div>
+</div>
 
 <div id="modal">
     <div id="modal-box">
@@ -201,6 +214,15 @@ function cleanHTML(html) {
         if (isBold)      s.fontWeight     = 'bold';
         if (isItalic)    s.fontStyle      = 'italic';
         if (isUnderline) s.textDecoration = 'underline';
+
+        // Links: always set blue color + underline so they're visible
+        if (tag === 'A' && n.getAttribute('href')) {
+            n.style.color = '#1a56c4';
+            n.style.textDecoration = 'underline';
+            n.style.fontSize = '18px';
+            n.style.fontFamily = 'Arial, sans-serif';
+            n.setAttribute('target', '_blank');
+        }
 
         // Clean junk attributes
         const id = n.getAttribute('id') || '';
@@ -302,14 +324,13 @@ function cleanHTML(html) {
 
     d.querySelectorAll('p').forEach(el => {
         const text = el.textContent.replace(/[\u00a0\u200b\u200c\u200d\ufeff\u2060\u180e]/g, '').trim();
-        // Strip zero-width/invisible chars from innerHTML for spacer detection
-        const innerClean = el.innerHTML.replace(/[\u200b\u200c\u200d\ufeff\u2060\u180e]/g, '').replace(/&(#8203|#x200[bBcCdD]|ZeroWidthSpace|#65279|#xFEFF|zwj|zwnj);/gi, '').trim();
-        const isSpacer = text === '' && (
-            innerClean === '' ||
-            /^<br\s*\/?>$/i.test(innerClean)
-        );
+        // A paragraph is a spacer if it has NO visible text and NO images/tables.
+        // This catches empty <p></p>, <p><br></p>, AND <p><span style="font-weight:bold"></span></p>
+        // (Google Docs creates the last form — bold-styled empty spans inside empty paragraphs)
+        const hasMedia = el.querySelector('img, table, iframe, video');
+        const isSpacer = text === '' && !hasMedia;
         if (isSpacer) {
-            // Keep as a visible line-height spacer — matches Google Docs paragraph spacing
+            // Replace all content with a single <br> so email clients render the line gap
             el.innerHTML = '<br>';
         }
         el.setAttribute('style', BODY);
@@ -334,6 +355,31 @@ function cleanHTML(html) {
     // are never stuck to the left edge, matching the email template layout
     d.querySelectorAll('ul, ol').forEach(el => {
         el.setAttribute('style', 'font-family:Arial,sans-serif;padding:0px 0px 0px 40px;margin-top:15px;margin-bottom:15px;');
+    });
+
+    // Step 9: Style <a> links — ensure all pasted links have blue color
+    // Fix THREE cases of color override:
+    // 1) child spans inside <a> with color:#333333
+    // 2) parent spans wrapping <a> with color:#333333
+    // 3) the <a> tag itself
+    d.querySelectorAll('a[href]').forEach(el => {
+        el.setAttribute('style', 'color:#1a56c4;font-size:18px;font-family:Arial,sans-serif;text-decoration:underline;');
+        el.setAttribute('target', '_blank');
+        // Fix child spans/strongs that carry their own color
+        el.querySelectorAll('span, strong, b, em, i').forEach(child => {
+            let cs = child.getAttribute('style') || '';
+            cs = cs.replace(/color\s*:\s*[^;]+;?/gi, '');
+            cs = 'color:#1a56c4;' + cs;
+            child.setAttribute('style', cs);
+        });
+        // Fix PARENT span that wraps the <a> — its color overrides the link in some email clients
+        const parent = el.parentElement;
+        if (parent && ['SPAN','STRONG','B','EM','I'].includes(parent.tagName)) {
+            let ps = parent.getAttribute('style') || '';
+            ps = ps.replace(/color\s*:\s*[^;]+;?/gi, '');
+            ps = 'color:#1a56c4;' + ps;
+            parent.setAttribute('style', ps);
+        }
     });
 
     return d.innerHTML;
@@ -453,6 +499,16 @@ function exportWithArial(html) {
         el.setAttribute('style', newStyle);
     });
 
+    // Ensure empty paragraphs have <br> so email clients render them as spacers
+    // (catches empty <p><span style="..."></span></p> that the editor might create)
+    d.querySelectorAll('p').forEach(el => {
+        const text = el.textContent.replace(/[\u00a0\u200b\u200c\u200d\ufeff\u2060\u180e]/g, '').trim();
+        const hasMedia = el.querySelector('img, table, iframe, video');
+        if (text === '' && !hasMedia) {
+            el.innerHTML = '<br>';
+        }
+    });
+
     // For every <p> element: write the FULL canonical Mailchimp-safe inline style.
     // This overwrites any partial/incorrect styles and ensures LearnWorlds respects 18px.
     // Footer paragraphs (font-size:11px) are detected and kept at 11px.
@@ -467,10 +523,17 @@ function exportWithArial(html) {
         const size  = isFooter ? '11px' : '18px';
         const lh    = isFooter ? '16.5px' : '27px';
 
+        // Preserve user-set margin-bottom/margin-top if present
+        let marginExtra = '';
+        const mbMatch = existing.match(/margin-bottom\s*:\s*([^;]+)/);
+        const mtMatch = existing.match(/margin-top\s*:\s*([^;]+)/);
+        if (mbMatch) marginExtra += 'mso-margin-bottom-alt:' + mbMatch[1].trim() + ';margin-bottom:' + mbMatch[1].trim() + ';';
+        if (mtMatch) marginExtra += 'mso-margin-top-alt:' + mtMatch[1].trim() + ';margin-top:' + mtMatch[1].trim() + ';';
+
         // Build the full canonical style — same format as template paragraphs
         el.setAttribute('style',
             'Margin:0;mso-line-height-rule:exactly;font-family:Arial,sans-serif;' +
-            'line-height:' + lh + ';letter-spacing:0;color:' + color + ';font-size:' + size + ';'
+            'line-height:' + lh + ';letter-spacing:0;color:' + color + ';font-size:' + size + ';' + marginExtra
         );
     });
 
@@ -485,6 +548,30 @@ function exportWithArial(html) {
     // Style <ul> and <ol> — ensure proper left padding for bullet indentation
     d.querySelectorAll('ul, ol').forEach(el => {
         el.setAttribute('style', 'font-family:Arial,sans-serif;padding:0px 0px 0px 40px;margin-top:15px;margin-bottom:15px;');
+    });
+
+    // Style <a> links — ensure blue color and underline in exported HTML
+    // Fix child spans, parent spans, and the <a> tag itself
+    d.querySelectorAll('a[href]').forEach(el => {
+        // Don't style footer links (tel:, mailto: with images) — only content links
+        if (el.querySelector('img')) return;
+        el.setAttribute('style', 'mso-line-height-rule:exactly;color:#1a56c4;font-size:18px;font-family:Arial,sans-serif;text-decoration:underline;');
+        el.setAttribute('target', '_blank');
+        // Fix child spans/strongs that carry their own color
+        el.querySelectorAll('span, strong, b, em, i').forEach(child => {
+            let cs = child.getAttribute('style') || '';
+            cs = cs.replace(/color\s*:\s*[^;]+;?/gi, '');
+            cs = 'color:#1a56c4;' + cs;
+            child.setAttribute('style', cs);
+        });
+        // Fix PARENT span that wraps the <a>
+        const parent = el.parentElement;
+        if (parent && ['SPAN','STRONG','B','EM','I'].includes(parent.tagName)) {
+            let ps = parent.getAttribute('style') || '';
+            ps = ps.replace(/color\s*:\s*[^;]+;?/gi, '');
+            ps = 'color:#1a56c4;' + ps;
+            parent.setAttribute('style', ps);
+        }
     });
 
     // Remove leading and trailing empty <p> inside each <td>
@@ -518,16 +605,83 @@ function doExport() {
 function fmt(cmd) { document.execCommand(cmd, false, null); sync(); }
 
 function doLink() {
+    // Save selection before prompt() steals focus
+    const sel = window.getSelection();
+    if (!sel.rangeCount || sel.isCollapsed) { alert('Najprv označ text.'); return; }
+    const savedRange = sel.getRangeAt(0).cloneRange();
+
     const url = prompt('URL adresa (napr. https://laba.cz):');
     if (!url) return;
+
+    // Restore selection after prompt
+    sel.removeAllRanges();
+    sel.addRange(savedRange);
+
     document.execCommand('createLink', false, url);
-    const sel = window.getSelection();
-    if (sel.anchorNode) {
-        let a = sel.anchorNode.parentElement;
-        if (a && a.tagName !== 'A') a = a.closest('a');
-        if (a) { a.target = '_blank'; a.style.color = '#1a56c4'; }
+
+    // Find the newly created <a> and style it
+    // After createLink, the selection is inside the new <a>
+    const sel2 = window.getSelection();
+    if (sel2.rangeCount) {
+        let node = sel2.anchorNode;
+        if (node.nodeType === 3) node = node.parentElement;
+        const a = node.closest('a');
+        if (a) {
+            a.target = '_blank';
+            a.setAttribute('style', 'color:#1a56c4;font-size:18px;font-family:Arial,sans-serif;text-decoration:underline;');
+            // Also fix any child spans
+            a.querySelectorAll('span, strong, b, em, i').forEach(child => {
+                let cs = child.getAttribute('style') || '';
+                cs = cs.replace(/color\s*:\s*[^;]+;?/gi, '');
+                cs = 'color:#1a56c4;' + cs;
+                child.setAttribute('style', cs);
+            });
+        }
     }
     sync();
+}
+
+function doUnlink() {
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    // Find the <a> element(s) in the selection
+    let node = sel.anchorNode;
+    if (node.nodeType === 3) node = node.parentElement;
+    const a = node.closest('a');
+    if (a) {
+        // Remove link: unwrap the <a>, reset styles on all children
+        const parent = a.parentNode;
+        // Reset color/underline on any child elements
+        a.querySelectorAll('span, strong, b, em, i').forEach(child => {
+            let cs = child.getAttribute('style') || '';
+            cs = cs.replace(/color\s*:\s*[^;]+;?/gi, '').replace(/text-decoration\s*:\s*[^;]+;?/gi, '');
+            cs = 'color:#333333;' + cs;
+            child.setAttribute('style', cs);
+        });
+        // Also fix parent wrapper span if present
+        if (parent && ['SPAN','STRONG','B','EM','I'].includes(parent.tagName)) {
+            let ps = parent.getAttribute('style') || '';
+            ps = ps.replace(/color\s*:\s*[^;]+;?/gi, '').replace(/text-decoration\s*:\s*[^;]+;?/gi, '');
+            ps = 'color:#333333;' + ps;
+            parent.setAttribute('style', ps);
+        }
+        // If <a> has no child elements (just text), wrap text in a clean span
+        if (!a.querySelector('span, strong, b, em, i')) {
+            const cleanSpan = document.createElement('span');
+            cleanSpan.style.color = '#333333';
+            while (a.firstChild) cleanSpan.appendChild(a.firstChild);
+            parent.insertBefore(cleanSpan, a);
+        } else {
+            // Move children out of <a> into parent
+            while (a.firstChild) parent.insertBefore(a.firstChild, a);
+        }
+        parent.removeChild(a);
+    } else {
+        // Fallback: use execCommand
+        document.execCommand('unlink', false, null);
+    }
+    sync();
+    toast('✂ LINK ODSTRÁNENÝ');
 }
 
 function cleanSel() {
@@ -679,6 +833,182 @@ function toast(msg) {
     clearTimeout(toastT);
     toastT = setTimeout(() => el.classList.remove('show'), 2400);
 }
+
+// ── FILE IMPORT (Google Docs HTML) ───────────────────────────
+function triggerImport() {
+    document.getElementById('file-import').click();
+}
+
+function handleFileImport(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    if (!file.name.match(/\.html?$/i)) {
+        alert('Vyber .html súbor (Google Docs → Download → Web Page)');
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+        processImportedHTML(e.target.result, file.name);
+    };
+    reader.readAsText(file);
+    input.value = ''; // reset so same file can be re-imported
+}
+
+function processImportedHTML(rawHtml, fileName) {
+    // Extract body content from full HTML document
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(rawHtml, 'text/html');
+    const body = doc.body;
+    if (!body || !body.innerHTML.trim()) {
+        alert('Súbor neobsahuje žiadny obsah.');
+        return;
+    }
+
+    // Step 1: Resolve CSS class styles → inline styles
+    // Google Docs HTML export uses <style> classes like .c1{font-weight:700}
+    // We must convert these to inline styles BEFORE extracting body content,
+    // otherwise bold/italic/underline info is lost when we discard the <head>.
+    const styleMap = {};
+    doc.querySelectorAll('style').forEach(styleEl => {
+        const text = styleEl.textContent;
+        const ruleRegex = /\.([a-zA-Z0-9_-]+)\s*\{([^}]*)\}/g;
+        let match;
+        while ((match = ruleRegex.exec(text)) !== null) {
+            styleMap[match[1]] = match[2];
+        }
+    });
+
+    body.querySelectorAll('*').forEach(el => {
+        if (!el.classList.length) return;
+        Array.from(el.classList).forEach(cls => {
+            const rules = styleMap[cls];
+            if (!rules) return;
+            // Formatting
+            if (/font-weight\s*:\s*(bold|[6-9]\d{2}|1000)/i.test(rules)) el.style.fontWeight = 'bold';
+            if (/font-style\s*:\s*italic/i.test(rules)) el.style.fontStyle = 'italic';
+            if (/text-decoration\s*:[^;]*underline/i.test(rules)) el.style.textDecoration = 'underline';
+            // Spacing — Google Docs uses height:Xpt on empty paragraphs
+            // and margin-bottom on regular paragraphs for spacing
+            const mbMatch = rules.match(/margin-bottom\s*:\s*([^;]+)/i);
+            if (mbMatch) el.style.marginBottom = mbMatch[1].trim();
+            const mtMatch = rules.match(/margin-top\s*:\s*([^;]+)/i);
+            if (mtMatch) el.style.marginTop = mtMatch[1].trim();
+        });
+    });
+
+    // Step 1b: Convert paragraph spacing into explicit empty-line spacers.
+    // Google Docs uses margin-bottom/margin-top on <p> for spacing between sections.
+    // Email templates use empty <p><br></p> instead. Convert one to the other.
+    // Also: ensure truly empty <p> elements (Google Docs empty lines) survive.
+    Array.from(body.querySelectorAll('p')).forEach(p => {
+        // If a paragraph has significant margin-bottom (> 10pt/14px), insert a spacer after it
+        const mb = parseFloat(p.style.marginBottom) || 0;
+        // Google Docs uses pt units — 12pt = 16px is typical "space after paragraph"
+        if (mb > 10) {
+            const spacer = doc.createElement('p');
+            spacer.innerHTML = '<br>';
+            p.parentNode.insertBefore(spacer, p.nextSibling);
+            p.style.marginBottom = '0';
+        }
+
+        // Ensure empty paragraphs have <br> so they render as visible spacers
+        const text = p.textContent.replace(/[\u00a0\u200b\u200c\u200d\ufeff]/g, '').trim();
+        if (text === '' && p.innerHTML.trim() === '') {
+            p.innerHTML = '<br>';
+        }
+    });
+
+    // Step 1c: Convert standalone <br> tags between paragraphs into <p><br></p> spacers
+    // (ChatGPT → Google Docs paste sometimes creates these)
+    Array.from(body.childNodes).forEach(node => {
+        if (node.nodeType === 1 && node.tagName === 'BR') {
+            const spacer = doc.createElement('p');
+            spacer.innerHTML = '<br>';
+            node.parentNode.replaceChild(spacer, node);
+        }
+    });
+
+    // Step 2: Remove style tags from body (no longer needed)
+    body.querySelectorAll('style').forEach(s => s.remove());
+
+    // Step 3: Get body content and clean it
+    const cleaned = cleanHTML(body.innerHTML);
+
+    // Step 4: Find the body content <td> in the editor
+    const bodyTd = findBodyTd();
+    if (!bodyTd) {
+        alert('Najprv vyber šablónu v ľavom paneli, potom importuj.');
+        return;
+    }
+
+    // Replace the body TD content with cleaned import
+    bodyTd.innerHTML = cleaned;
+    makeEditable();
+    sync();
+    toast('📂 IMPORTOVANÉ: ' + fileName);
+}
+
+function findBodyTd() {
+    // Find the <td> with the most <p> children among white-bg TDs = body content area
+    const tds = editor.querySelectorAll('td[bgcolor="#ffffff"]');
+    let best = null;
+    let maxPs = 0;
+    tds.forEach(td => {
+        const pCount = td.querySelectorAll('p').length;
+        if (pCount > maxPs) {
+            maxPs = pCount;
+            best = td;
+        }
+    });
+    return best;
+}
+
+// ── DRAG & DROP ─────────────────────────────────────────────
+const dropOverlay = document.getElementById('drop-overlay');
+let dragCounter = 0;
+
+window.addEventListener('dragenter', e => {
+    e.preventDefault();
+    // Only show overlay for file drops (not text drags inside editor)
+    if (e.dataTransfer && e.dataTransfer.types.includes('Files')) {
+        dragCounter++;
+        dropOverlay.classList.add('active');
+    }
+});
+
+window.addEventListener('dragleave', e => {
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter <= 0) {
+        dragCounter = 0;
+        dropOverlay.classList.remove('active');
+    }
+});
+
+window.addEventListener('dragover', e => {
+    e.preventDefault(); // required to allow drop
+});
+
+window.addEventListener('drop', e => {
+    e.preventDefault();
+    dragCounter = 0;
+    dropOverlay.classList.remove('active');
+
+    const files = e.dataTransfer && e.dataTransfer.files;
+    if (!files || !files.length) return;
+
+    const file = files[0];
+    if (!file.name.match(/\.html?$/i)) {
+        toast('⚠️ Vyber .html súbor');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+        processImportedHTML(ev.target.result, file.name);
+    };
+    reader.readAsText(file);
+});
 
 init();
 </script>
